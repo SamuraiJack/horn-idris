@@ -1,0 +1,5 @@
+package horn
+
+sourcedir = src
+modules = Some
+opts = "-p contrib" 
