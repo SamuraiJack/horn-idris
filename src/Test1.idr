@@ -8,8 +8,6 @@ import Control.Monad.State
 import Data.So
 import Data.Vect
 
-%access public export
-
 data FixedPoint : (f : Type -> Type) -> Type where
     MkFixedPoint   : f (FixedPoint f) -> FixedPoint f
 
@@ -85,7 +83,7 @@ AnyColumnExpression' = (sqlType ** ColumnExpression sqlType)
 --             extractTableNamesHelper (f res)
 
 data TableJoiningType = Inner | Outer | Left | Right
-data TableJoining = MkTableJoining String TableJoiningType (ColumnExpression BOOLEAN)
+data TableJoining = MkTableJoining TableJoiningType (ColumnExpression BOOLEAN)
 
 record QueryAbstractSyntaxTree where
     constructor MkQueryAbstractSyntaxTree
@@ -108,115 +106,46 @@ record QueryAstState where
     joinState               : TableJoiningState
 
 
-data SqlQueryParts : (result : Type) -> (before : QueryAstState) -> (after : QueryAstState) -> Type where
+data SqlQueryParts : (before : QueryAstState) -> (after : QueryAstState) -> (result : Type) -> Type where
     Select :
         List AnyColumnExpression'
         -> SqlQueryParts
-            ()
             (MkQueryAstState
                 joinState
             )
             (MkQueryAstState
                 joinState
             )
+            a
     AlsoSelect :
         List AnyColumnExpression'
         -> SqlQueryParts
+            (MkQueryAstState
+                joinState
+            )
+            (MkQueryAstState
+                joinState
+            )
             ()
-            (MkQueryAstState
-                joinState
-            )
-            (MkQueryAstState
-                joinState
-            )
 
     From :
         (tableName : String)
         -> SqlQueryParts
-            ()
             (MkQueryAstState
                 NoTables
             )
             (MkQueryAstState
                 HasTables
             )
-
-    LeftJoin :
-        (tableName : String)
-        -> (joinExpression : ColumnExpression BOOLEAN)
-        -> SqlQueryParts
             ()
-            (MkQueryAstState
-                HasTables
-            )
-            (MkQueryAstState
-                HasTables
-            )
-    Where :
-        ColumnExpression BOOLEAN ->
-        SqlQueryParts
-            ()
-            (MkQueryAstState joinState)
-            (MkQueryAstState joinState)
-
-    Pure            : a -> SqlQueryParts a before before
-    (>>=)           : SqlQueryParts a st1 st2 -> (a -> SqlQueryParts b st2 st3) -> SqlQueryParts b st1 st3
 
 
-collapseToAst : SqlQueryParts a before after -> QueryAbstractSyntaxTree
-collapseToAst x =
-    execState (collapseToAstHelper x) (MkQueryAbstractSyntaxTree False [] Nothing [] (BooleanLiteral True))
-    where
-        collapseToAstHelper : SqlQueryParts a before after -> State QueryAbstractSyntaxTree a
+    Pure            : a -> SqlQueryParts before before a
+    -- (>>=)           : SqlQueryParts a st1 st2 -> (a -> SqlQueryParts b st2 st3) -> SqlQueryParts b st1 st3
 
-        collapseToAstHelper (Select expressions) = do
-            modify (record { fields $= (++ expressions) })
-
-        collapseToAstHelper (AlsoSelect expressions) = do
-            modify (record { fields $= (++ expressions) })
-
-        collapseToAstHelper (From tableName) = do
-            modify (record { baseTable = Just tableName })
-
-        collapseToAstHelper (LeftJoin tableName joinExpression) = do
-            modify (record { joins $= ((MkTableJoining tableName Left joinExpression) ::) })
-
-        collapseToAstHelper (Where columnExpression) = do
-            modify (record { whereCondition = columnExpression })
-
-        collapseToAstHelper (Pure x) = pure x
-
-        collapseToAstHelper (x >>= f) = do
-            res <- collapseToAstHelper x
-            collapseToAstHelper (f res)
-
-
-astTablesInSchema : (dbSchema : DatabaseSchema) -> QueryAbstractSyntaxTree -> Bool
-astTablesInSchema dbSchema ast =
-    let
-        tableNames          = extractTableNames ast
-        tablesNotInSchema   = filter (not . (databaseHasTable dbSchema)) tableNames
-    in
-        tablesNotInSchema == []
-    where
-        extractTableNames : (ast : QueryAbstractSyntaxTree) -> List String
-        extractTableNames (MkQueryAbstractSyntaxTree distinct fields baseTable joins whereCondition) = 
-            let
-                joinTables      = map (\(MkTableJoining tableName _ _) => tableName) joins
-            in
-                if isJust baseTable then
-                    (fromMaybe "" baseTable) :: joinTables
-                else
-                    joinTables
-
-
-data Query : (db : DatabaseSchema) -> Type where
-    MkQuery : Query db
-
-compileQueryForDatabase :
-    (freeQuery : SqlQueryParts () before after)
-    -> {auto prf : So (astTablesInSchema db (collapseToAst freeQuery)) }
-    -> Query db
-
-compileQueryForDatabase {db} freeQuery = MkQuery
+implementation Functor (SqlQueryParts before after) where
+    map func (Select xs) = ?Functor_rhs_2
+    map func (AlsoSelect xs) = ?Functor_rhs_3
+    map func (From tableName) = ?Functor_rhs_4
+    map func (Pure x) = ?Functor_rhs_5
 

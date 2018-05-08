@@ -2,19 +2,19 @@ module SqlTypes
 
 %default total
 
-public export 
+public export
 data SqlType = BOOLEAN | TEXT | INTEGER | FLOAT | NULLABLE SqlType
 
-public export 
-data SqlTypeIsNumeric : SqlType -> Type where
+public export
+data SqlTypeIsNumeric : (sqlType : SqlType) -> Type where
     BecauseItsInteger   : SqlTypeIsNumeric INTEGER
     BecauseItsFloat     : SqlTypeIsNumeric FLOAT
 
--- public export 
+-- public export
 -- makeNullable : SqlType -> SqlType
 -- makeNullable x = ?makeNullable_rhs
 
-public export 
+public export
 sqlTypeToIdrisType : SqlType -> Type
 sqlTypeToIdrisType BOOLEAN = Bool
 sqlTypeToIdrisType TEXT = String

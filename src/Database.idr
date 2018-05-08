@@ -2,6 +2,8 @@ module Database
 
 import SqlTypes
 
+%default total
+
 public export
 record DatabaseColumn where
     constructor MkDatabaseColumn
