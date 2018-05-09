@@ -16,12 +16,12 @@ selectIdAndName = do
 
 joinWithZZ : SqlQueryParts () (MkQueryAstState HasTables) (MkQueryAstState HasTables)
 joinWithZZ = do
-    LeftJoin "Company" (BooleanLiteral True)
+    LeftJoin (Table "Company") (BooleanLiteral True)
 
 
 selectFromUser : SqlQueryParts () (MkQueryAstState NoTables) (MkQueryAstState HasTables)
 selectFromUser = do
-    From ("User")
+    From (Table "User" `As` "U")
 
 
 whereCond : SqlQueryParts () (MkQueryAstState joinState) (MkQueryAstState joinState)

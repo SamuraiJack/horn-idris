@@ -8,10 +8,29 @@ import Control.Monad.State
 import Data.So
 import Data.Vect
 
+%default total
+
 %access public export
 
-data FixedPoint : (f : Type -> Type) -> Type where
-    MkFixedPoint   : f (FixedPoint f) -> FixedPoint f
+mutual
+    data QuerySource : Type where
+        Table           : (tableName : String) -> QuerySource
+        SubQuery        : Bool -> QuerySource
+        As              : (source : QuerySource) -> {auto prf : QuerySourceIsNotAliased source} -> (aliasName : String) -> QuerySource
+
+    data QuerySourceIsNotAliased : QuerySource -> Type where
+        BecauseItIsTable        : QuerySourceIsNotAliased (Table tableName)
+        BecauseItIsSubquery     : QuerySourceIsNotAliased (SubQuery query)
+            
+
+nameOfQuerySource : (source : QuerySource) -> Maybe String
+nameOfQuerySource source = Nothing
+
+tableNameFromQuerySource : (source : QuerySource) -> Maybe String
+tableNameFromQuerySource (Table tableName) = Just tableName
+tableNameFromQuerySource (SubQuery x) = Nothing
+tableNameFromQuerySource (As (Table tableName) _) = Just tableName
+tableNameFromQuerySource (As _ _) = Nothing
 
 
 data ColumnExpression : SqlType -> Type where
@@ -44,48 +63,12 @@ data ColumnExpression : SqlType -> Type where
     And             : ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN
     Or              : ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN
 
-data AnyColumnExpression : Type where
-    MkAnyColumnExpression : ColumnExpression sqlType -> AnyColumnExpression
-
 AnyColumnExpression' : Type
 AnyColumnExpression' = (sqlType ** ColumnExpression sqlType)
 
 
-
--- namespace TableJoinExpression
---     data TableJoiningState = NoTables | HasTables
-
---     data TableJoinExpression : (result : Type) -> (before : TableJoiningState) -> (after : TableJoiningState) -> Type where
---         Empty           : TableJoinExpression () NoTables NoTables
---         SingleTable     : (tableName : String) -> TableJoinExpression () NoTables HasTables
---         InnerJoin       : (tableName : String) -> (joinExpression : ColumnExpression BOOLEAN) -> TableJoinExpression () HasTables HasTables
---         LeftJoin        : (tableName : String) -> (joinExpression : ColumnExpression BOOLEAN) -> TableJoinExpression () HasTables HasTables
---         RightJoin       : (tableName : String) -> (joinExpression : ColumnExpression BOOLEAN) -> TableJoinExpression () HasTables HasTables
-
---         Pure            : a -> TableJoinExpression a before after
---         (>>=)           : TableJoinExpression a st1 st2 -> (a -> TableJoinExpression b st2 st3) -> TableJoinExpression b st1 st3
-
-
--- cons : a -> List a -> List a
--- cons = Prelude.List.(::)
-
--- extractTableNames : TableJoinExpression a before after -> List String
--- extractTableNames expr =
---     execState (extractTableNamesHelper expr) []
---     where
---         extractTableNamesHelper : TableJoinExpression a before after -> State (List String) a
---         extractTableNamesHelper Empty = put Prelude.List.Nil
---         extractTableNamesHelper (SingleTable tableName) = modify (cons tableName)
---         extractTableNamesHelper (InnerJoin tableName joinExpression) = modify (cons tableName)
---         extractTableNamesHelper (LeftJoin tableName joinExpression) = modify (cons tableName)
---         extractTableNamesHelper (RightJoin tableName joinExpression) = modify (cons tableName)
---         extractTableNamesHelper (Pure x) = pure x
---         extractTableNamesHelper (x >>= f) = do
---             res <- extractTableNamesHelper x
---             extractTableNamesHelper (f res)
-
 data TableJoiningType = Inner | Outer | Left | Right
-data TableJoining = MkTableJoining String TableJoiningType (ColumnExpression BOOLEAN)
+data TableJoining = MkTableJoining QuerySource TableJoiningType (ColumnExpression BOOLEAN)
 
 record QueryAbstractSyntaxTree where
     constructor MkQueryAbstractSyntaxTree
@@ -93,7 +76,7 @@ record QueryAbstractSyntaxTree where
     distinct        : Bool
 
     fields          : List AnyColumnExpression'
-    baseTable       : Maybe String
+    baseTable       : Maybe QuerySource
     joins           : List TableJoining
     -- tables          : TableJoinExpression () before after
     -- default value will be just `TRUE`
@@ -131,7 +114,7 @@ data SqlQueryParts : (result : Type) -> (before : QueryAstState) -> (after : Que
             )
 
     From :
-        (tableName : String)
+        (source : QuerySource)
         -> SqlQueryParts
             ()
             (MkQueryAstState
@@ -142,7 +125,7 @@ data SqlQueryParts : (result : Type) -> (before : QueryAstState) -> (after : Que
             )
 
     LeftJoin :
-        (tableName : String)
+        (source : QuerySource)
         -> (joinExpression : ColumnExpression BOOLEAN)
         -> SqlQueryParts
             ()
@@ -162,7 +145,6 @@ data SqlQueryParts : (result : Type) -> (before : QueryAstState) -> (after : Que
     Pure            : a -> SqlQueryParts a before before
     (>>=)           : SqlQueryParts a st1 st2 -> (a -> SqlQueryParts b st2 st3) -> SqlQueryParts b st1 st3
 
-
 collapseToAst : SqlQueryParts a before after -> QueryAbstractSyntaxTree
 collapseToAst x =
     execState (collapseToAstHelper x) (MkQueryAbstractSyntaxTree False [] Nothing [] (BooleanLiteral True))
@@ -175,11 +157,11 @@ collapseToAst x =
         collapseToAstHelper (AlsoSelect expressions) = do
             modify (record { fields $= (++ expressions) })
 
-        collapseToAstHelper (From tableName) = do
-            modify (record { baseTable = Just tableName })
+        collapseToAstHelper (From querySource) = do
+            modify (record { baseTable = Just querySource })
 
-        collapseToAstHelper (LeftJoin tableName joinExpression) = do
-            modify (record { joins $= ((MkTableJoining tableName Left joinExpression) ::) })
+        collapseToAstHelper (LeftJoin querySource joinExpression) = do
+            modify (record { joins $= ((MkTableJoining querySource Left joinExpression) ::) })
 
         collapseToAstHelper (Where columnExpression) = do
             modify (record { whereCondition = columnExpression })
@@ -191,6 +173,20 @@ collapseToAst x =
             collapseToAstHelper (f res)
 
 
+total
+extractTableNames : (ast : QueryAbstractSyntaxTree) -> List String
+extractTableNames (MkQueryAbstractSyntaxTree distinct fields baseSource joins whereCondition) =
+    let
+        sources         = map (\(MkTableJoining source _ _) => source) joins
+        tableNames      = filter (isJust) $ map (tableNameFromQuerySource) sources
+        joinTables      = map (fromMaybe "") tableNames
+    in
+        case baseSource of
+            Nothing     => joinTables
+            Just source => case tableNameFromQuerySource source of
+                Nothing             => joinTables
+                Just tableName      => tableName :: joinTables
+
 astTablesInSchema : (dbSchema : DatabaseSchema) -> QueryAbstractSyntaxTree -> Bool
 astTablesInSchema dbSchema ast =
     let
@@ -198,18 +194,8 @@ astTablesInSchema dbSchema ast =
         tablesNotInSchema   = filter (not . (databaseHasTable dbSchema)) tableNames
     in
         tablesNotInSchema == []
-    where
-        extractTableNames : (ast : QueryAbstractSyntaxTree) -> List String
-        extractTableNames (MkQueryAbstractSyntaxTree distinct fields baseTable joins whereCondition) = 
-            let
-                joinTables      = map (\(MkTableJoining tableName _ _) => tableName) joins
-            in
-                if isJust baseTable then
-                    (fromMaybe "" baseTable) :: joinTables
-                else
-                    joinTables
-
-
+        
+            
 data Query : (db : DatabaseSchema) -> Type where
     MkQuery : Query db
 
