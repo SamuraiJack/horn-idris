@@ -12,11 +12,17 @@ import Data.Vect
 
 %access public export
 
+data TableJoiningState  = NoTables | HasTables
+data TableJoiningType   = Inner | Outer | Left | Right
+
+
 mutual
     data QuerySource : Type where
         Table           : (tableName : String) -> QuerySource
-        SubQuery        : Bool -> QuerySource
-        As              : (source : QuerySource) -> {auto prf : QuerySourceIsNotAliased source} -> (aliasName : String) -> QuerySource
+        SubQuery        : SqlQueryParts () before after -> QuerySource
+        -- -> {auto prf : QuerySourceIsNotAliased source}
+        -- `prf` breaks totality
+        AsSource        : (source : QuerySource) -> (aliasName : String) -> QuerySource
 
     data QuerySourceIsNotAliased : QuerySource -> Type where
         BecauseItIsTable        : QuerySourceIsNotAliased (Table tableName)
@@ -29,8 +35,8 @@ mutual
     tableNameFromQuerySource : (source : QuerySource) -> Maybe String
     tableNameFromQuerySource (Table tableName) = Just tableName
     tableNameFromQuerySource (SubQuery x) = Nothing
-    tableNameFromQuerySource (As (Table tableName) _) = Just tableName
-    tableNameFromQuerySource (As _ _) = Nothing
+    tableNameFromQuerySource (AsSource (Table tableName) _) = Just tableName
+    tableNameFromQuerySource (AsSource _ _) = Nothing
 
 
     data ColumnExpression : SqlType -> Type where
@@ -39,13 +45,12 @@ mutual
         IntegerLiteral  : Int -> ColumnExpression INTEGER
         FloatLiteral    : Double -> ColumnExpression FLOAT
 
+        SubQueryExpression : (query : SqlQueryParts () before after) -> (resultType : SqlType) -> ColumnExpression resultType
+
         Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
         ColumnInTable   : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
 
-        ColumnAs        : {columnType : SqlType} -> (columnName : String) -> (columnAlias : String) -> ColumnExpression columnType
-        ColumnInTableAs : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> (columnAlias : String) -> ColumnExpression columnType
-
-        Alias           : {aliasType : SqlType} -> (columnName : String) -> ColumnExpression aliasType
+        AsExpr          : ColumnExpression sqlType -> (aliasName : String) -> ColumnExpression sqlType
 
         -- TODO use (Num t =>) constraint instead
         (+)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression t
@@ -66,8 +71,6 @@ mutual
     AnyColumnExpression' : Type
     AnyColumnExpression' = (sqlType ** ColumnExpression sqlType)
 
-
-    data TableJoiningType = Inner | Outer | Left | Right
     data TableJoining = MkTableJoining QuerySource TableJoiningType (ColumnExpression BOOLEAN)
 
     record QueryAbstractSyntaxTree where
@@ -83,7 +86,6 @@ mutual
         whereCondition  : ColumnExpression BOOLEAN
 
 
-    data TableJoiningState = NoTables | HasTables
 
     record QueryAstState where
         constructor MkQueryAstState

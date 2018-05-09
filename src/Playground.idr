@@ -6,6 +6,7 @@ import Database
 
 import Data.So
 
+%default total
 
 selectIdAndName : SqlQueryParts () (MkQueryAstState joinState) (MkQueryAstState joinState)
 selectIdAndName = do
@@ -21,8 +22,10 @@ joinWithZZ = do
 
 selectFromUser : SqlQueryParts () (MkQueryAstState NoTables) (MkQueryAstState HasTables)
 selectFromUser = do
-    From (Table "User" `As` "U")
+    From (Table "User" `AsSource` "U")
 
+aa : QuerySource
+aa = Table "User" `AsSource` "U"
 
 whereCond : SqlQueryParts () (MkQueryAstState joinState) (MkQueryAstState joinState)
 whereCond = do
