@@ -23,127 +23,127 @@ mutual
         BecauseItIsSubquery     : QuerySourceIsNotAliased (SubQuery query)
             
 
-nameOfQuerySource : (source : QuerySource) -> Maybe String
-nameOfQuerySource source = Nothing
+    nameOfQuerySource : (source : QuerySource) -> Maybe String
+    nameOfQuerySource source = Nothing
 
-tableNameFromQuerySource : (source : QuerySource) -> Maybe String
-tableNameFromQuerySource (Table tableName) = Just tableName
-tableNameFromQuerySource (SubQuery x) = Nothing
-tableNameFromQuerySource (As (Table tableName) _) = Just tableName
-tableNameFromQuerySource (As _ _) = Nothing
-
-
-data ColumnExpression : SqlType -> Type where
-    BooleanLiteral  : Bool -> ColumnExpression BOOLEAN
-    TextLiteral     : String -> ColumnExpression TEXT
-    IntegerLiteral  : Int -> ColumnExpression INTEGER
-    FloatLiteral    : Double -> ColumnExpression FLOAT
-
-    Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
-    ColumnInTable   : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
-
-    ColumnAs        : {columnType : SqlType} -> (columnName : String) -> (columnAlias : String) -> ColumnExpression columnType
-    ColumnInTableAs : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> (columnAlias : String) -> ColumnExpression columnType
-
-    Alias           : {aliasType : SqlType} -> (columnName : String) -> ColumnExpression aliasType
-
-    -- TODO use (Num t =>) constraint instead
-    (+)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression t
-    (-)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression t
-
-    -- TODO use (Eq t =>) constraint instead
-    (==)            : ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
-
-    -- TODO use (Ord t =>) constraint instead
-    (>)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
-    (<)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
-    (<=)            : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
-    (>=)            : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
-
-    And             : ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN
-    Or              : ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN
-
-AnyColumnExpression' : Type
-AnyColumnExpression' = (sqlType ** ColumnExpression sqlType)
+    tableNameFromQuerySource : (source : QuerySource) -> Maybe String
+    tableNameFromQuerySource (Table tableName) = Just tableName
+    tableNameFromQuerySource (SubQuery x) = Nothing
+    tableNameFromQuerySource (As (Table tableName) _) = Just tableName
+    tableNameFromQuerySource (As _ _) = Nothing
 
 
-data TableJoiningType = Inner | Outer | Left | Right
-data TableJoining = MkTableJoining QuerySource TableJoiningType (ColumnExpression BOOLEAN)
+    data ColumnExpression : SqlType -> Type where
+        BooleanLiteral  : Bool -> ColumnExpression BOOLEAN
+        TextLiteral     : String -> ColumnExpression TEXT
+        IntegerLiteral  : Int -> ColumnExpression INTEGER
+        FloatLiteral    : Double -> ColumnExpression FLOAT
 
-record QueryAbstractSyntaxTree where
-    constructor MkQueryAbstractSyntaxTree
+        Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
+        ColumnInTable   : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
 
-    distinct        : Bool
+        ColumnAs        : {columnType : SqlType} -> (columnName : String) -> (columnAlias : String) -> ColumnExpression columnType
+        ColumnInTableAs : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> (columnAlias : String) -> ColumnExpression columnType
 
-    fields          : List AnyColumnExpression'
-    baseTable       : Maybe QuerySource
-    joins           : List TableJoining
-    -- tables          : TableJoinExpression () before after
-    -- default value will be just `TRUE`
-    whereCondition  : ColumnExpression BOOLEAN
+        Alias           : {aliasType : SqlType} -> (columnName : String) -> ColumnExpression aliasType
+
+        -- TODO use (Num t =>) constraint instead
+        (+)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression t
+        (-)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression t
+
+        -- TODO use (Eq t =>) constraint instead
+        (==)            : ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
+
+        -- TODO use (Ord t =>) constraint instead
+        (>)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
+        (<)             : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
+        (<=)            : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
+        (>=)            : {auto prf : SqlTypeIsNumeric t} -> ColumnExpression t -> ColumnExpression t -> ColumnExpression BOOLEAN
+
+        And             : ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN
+        Or              : ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN -> ColumnExpression BOOLEAN
+
+    AnyColumnExpression' : Type
+    AnyColumnExpression' = (sqlType ** ColumnExpression sqlType)
 
 
-data TableJoiningState = NoTables | HasTables
+    data TableJoiningType = Inner | Outer | Left | Right
+    data TableJoining = MkTableJoining QuerySource TableJoiningType (ColumnExpression BOOLEAN)
 
-record QueryAstState where
-    constructor MkQueryAstState
+    record QueryAbstractSyntaxTree where
+        constructor MkQueryAbstractSyntaxTree
 
-    joinState               : TableJoiningState
+        distinct        : Bool
+
+        fields          : List AnyColumnExpression'
+        baseTable       : Maybe QuerySource
+        joins           : List TableJoining
+        -- tables          : TableJoinExpression () before after
+        -- default value will be just `TRUE`
+        whereCondition  : ColumnExpression BOOLEAN
 
 
-data SqlQueryParts : (result : Type) -> (before : QueryAstState) -> (after : QueryAstState) -> Type where
-    Select :
-        List AnyColumnExpression'
-        -> SqlQueryParts
-            ()
-            (MkQueryAstState
-                joinState
-            )
-            (MkQueryAstState
-                joinState
-            )
-    AlsoSelect :
-        List AnyColumnExpression'
-        -> SqlQueryParts
-            ()
-            (MkQueryAstState
-                joinState
-            )
-            (MkQueryAstState
-                joinState
-            )
+    data TableJoiningState = NoTables | HasTables
 
-    From :
-        (source : QuerySource)
-        -> SqlQueryParts
-            ()
-            (MkQueryAstState
-                NoTables
-            )
-            (MkQueryAstState
-                HasTables
-            )
+    record QueryAstState where
+        constructor MkQueryAstState
 
-    LeftJoin :
-        (source : QuerySource)
-        -> (joinExpression : ColumnExpression BOOLEAN)
-        -> SqlQueryParts
-            ()
-            (MkQueryAstState
-                HasTables
-            )
-            (MkQueryAstState
-                HasTables
-            )
-    Where :
-        ColumnExpression BOOLEAN ->
-        SqlQueryParts
-            ()
-            (MkQueryAstState joinState)
-            (MkQueryAstState joinState)
+        joinState               : TableJoiningState
 
-    Pure            : a -> SqlQueryParts a before before
-    (>>=)           : SqlQueryParts a st1 st2 -> (a -> SqlQueryParts b st2 st3) -> SqlQueryParts b st1 st3
+
+    data SqlQueryParts : (result : Type) -> (before : QueryAstState) -> (after : QueryAstState) -> Type where
+        Select :
+            List AnyColumnExpression'
+            -> SqlQueryParts
+                ()
+                (MkQueryAstState
+                    joinState
+                )
+                (MkQueryAstState
+                    joinState
+                )
+        AlsoSelect :
+            List AnyColumnExpression'
+            -> SqlQueryParts
+                ()
+                (MkQueryAstState
+                    joinState
+                )
+                (MkQueryAstState
+                    joinState
+                )
+
+        From :
+            (source : QuerySource)
+            -> SqlQueryParts
+                ()
+                (MkQueryAstState
+                    NoTables
+                )
+                (MkQueryAstState
+                    HasTables
+                )
+
+        LeftJoin :
+            (source : QuerySource)
+            -> (joinExpression : ColumnExpression BOOLEAN)
+            -> SqlQueryParts
+                ()
+                (MkQueryAstState
+                    HasTables
+                )
+                (MkQueryAstState
+                    HasTables
+                )
+        Where :
+            ColumnExpression BOOLEAN ->
+            SqlQueryParts
+                ()
+                (MkQueryAstState joinState)
+                (MkQueryAstState joinState)
+
+        Pure            : a -> SqlQueryParts a before before
+        (>>=)           : SqlQueryParts a st1 st2 -> (a -> SqlQueryParts b st2 st3) -> SqlQueryParts b st1 st3
 
 collapseToAst : SqlQueryParts a before after -> QueryAbstractSyntaxTree
 collapseToAst x =
