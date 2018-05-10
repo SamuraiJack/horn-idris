@@ -15,11 +15,17 @@ import Data.Vect
 data TableJoiningState  = NoTables | HasTables
 data TableJoiningType   = Inner | Outer | Left | Right
 
+namespace ListHasExactlyOneElement
+    data ListHasExactlyOneElement : (a : Type) -> List a -> Type where
+        Because     : ListHasExactlyOneElement ty (x :: [])
+
+getElementFromProof : (prf : ListHasExactlyOneElement ty xs) -> ty
+getElementFromProof (Because {x}) = x
 
 mutual
     data QuerySource : Type where
         Table           : (tableName : String) -> QuerySource
-        SubQuery        : SqlQueryParts () before after -> QuerySource
+        SubQuery        : QueryAbstractSyntaxTree -> QuerySource
         -- -> {auto prf : QuerySourceIsNotAliased source}
         -- `prf` breaks totality
         AsSource        : (source : QuerySource) -> (aliasName : String) -> QuerySource
@@ -27,7 +33,7 @@ mutual
     data QuerySourceIsNotAliased : QuerySource -> Type where
         BecauseItIsTable        : QuerySourceIsNotAliased (Table tableName)
         BecauseItIsSubquery     : QuerySourceIsNotAliased (SubQuery query)
-            
+
 
     nameOfQuerySource : (source : QuerySource) -> Maybe String
     nameOfQuerySource source = Nothing
@@ -45,7 +51,10 @@ mutual
         IntegerLiteral  : Int -> ColumnExpression INTEGER
         FloatLiteral    : Double -> ColumnExpression FLOAT
 
-        SubQueryExpression : (query : SqlQueryParts () before after) -> (resultType : SqlType) -> ColumnExpression resultType
+        SubQueryExpression :
+            (query : QueryAbstractSyntaxTree)
+            -> { auto prf : QueryHasExactlyOneColumn query }
+            -> ColumnExpression (getSqlTypeFromQueryWithOneColumn prf)
 
         Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
         ColumnInTable   : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
@@ -72,6 +81,7 @@ mutual
     AnyColumnExpression' = (sqlType ** ColumnExpression sqlType)
 
     data TableJoining = MkTableJoining QuerySource TableJoiningType (ColumnExpression BOOLEAN)
+
 
     record QueryAbstractSyntaxTree where
         constructor MkQueryAbstractSyntaxTree
@@ -147,35 +157,60 @@ mutual
         Pure            : a -> SqlQueryParts a before before
         (>>=)           : SqlQueryParts a st1 st2 -> (a -> SqlQueryParts b st2 st3) -> SqlQueryParts b st1 st3
 
-collapseToAst : SqlQueryParts a before after -> QueryAbstractSyntaxTree
-collapseToAst x =
-    execState (collapseToAstHelper x) (MkQueryAbstractSyntaxTree False [] Nothing [] (BooleanLiteral True))
-    where
-        collapseToAstHelper : SqlQueryParts a before after -> State QueryAbstractSyntaxTree a
 
-        collapseToAstHelper (Select expressions) = do
-            modify (record { fields $= (++ expressions) })
+    collapseToAst : SqlQueryParts a before after -> QueryAbstractSyntaxTree
+    collapseToAst x =
+        execState (collapseToAstHelper x) (MkQueryAbstractSyntaxTree False [] Nothing [] (BooleanLiteral True))
+        where
+            collapseToAstHelper : SqlQueryParts a before after -> State QueryAbstractSyntaxTree a
 
-        collapseToAstHelper (AlsoSelect expressions) = do
-            modify (record { fields $= (++ expressions) })
+            collapseToAstHelper (Select expressions) = do
+                modify (record { fields $= (++ expressions) })
 
-        collapseToAstHelper (From querySource) = do
-            modify (record { baseTable = Just querySource })
+            collapseToAstHelper (AlsoSelect expressions) = do
+                modify (record { fields $= (++ expressions) })
 
-        collapseToAstHelper (LeftJoin querySource joinExpression) = do
-            modify (record { joins $= ((MkTableJoining querySource Left joinExpression) ::) })
+            collapseToAstHelper (From querySource) = do
+                modify (record { baseTable = Just querySource })
 
-        collapseToAstHelper (Where columnExpression) = do
-            modify (record { whereCondition = columnExpression })
+            collapseToAstHelper (LeftJoin querySource joinExpression) = do
+                modify (record { joins $= ((MkTableJoining querySource Left joinExpression) ::) })
 
-        collapseToAstHelper (Pure x) = pure x
+            collapseToAstHelper (Where columnExpression) = do
+                modify (record { whereCondition = columnExpression })
 
-        collapseToAstHelper (x >>= f) = do
-            res <- collapseToAstHelper x
-            collapseToAstHelper (f res)
+            collapseToAstHelper (Pure x) = pure x
+
+            collapseToAstHelper (x >>= f) = do
+                res <- collapseToAstHelper x
+                collapseToAstHelper (f res)
 
 
-total
+    namespace QueryHasExactlyOneColumn
+        data QueryHasExactlyOneColumn : (query : QueryAbstractSyntaxTree) -> Type where
+            Because     :
+                { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields (query)) }
+                -> QueryHasExactlyOneColumn query
+
+
+    namespace QueryIsValid
+        data QueryIsValid : (query : SqlQueryParts () before after) -> Type where
+            Because     : 
+                -- { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields (collapseToAst query)) }
+                -- -> 
+                QueryIsValid query
+        
+                
+    getSqlTypeFromQueryWithOneColumn : (f : QueryHasExactlyOneColumn query) -> SqlType
+    getSqlTypeFromQueryWithOneColumn f = assert_total $ case f of
+        Because {prf} =>
+            let
+                (sqlType ** expression) = getElementFromProof prf
+            in
+                sqlType
+
+-- EOF mutual
+
 extractTableNames : (ast : QueryAbstractSyntaxTree) -> List String
 extractTableNames (MkQueryAbstractSyntaxTree distinct fields baseSource joins whereCondition) =
     let
@@ -196,8 +231,8 @@ astTablesInSchema dbSchema ast =
         tablesNotInSchema   = filter (not . (databaseHasTable dbSchema)) tableNames
     in
         tablesNotInSchema == []
-        
-            
+
+
 data Query : (db : DatabaseSchema) -> Type where
     MkQuery : Query db
 
@@ -208,3 +243,6 @@ compileQueryForDatabase :
 
 compileQueryForDatabase {db} freeQuery = MkQuery
 
+
+query : SqlQueryParts a before after -> QueryAbstractSyntaxTree
+query x = ?query_rhs

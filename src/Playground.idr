@@ -11,9 +11,19 @@ import Data.So
 selectIdAndName : SqlQueryParts () (MkQueryAstState joinState) (MkQueryAstState joinState)
 selectIdAndName = do
     Select [
-        (_ ** Column {columnType = INTEGER} "id"),
-        (_ ** Column {columnType = TEXT} "name")
+        (INTEGER ** Column "id"),
+        (INTEGER ** Column "id")
+        -- ,
+        -- (_ ** SubQueryExpression $ Select [
+        --     (INTEGER ** Column "id")
+        -- ])
+    
+        -- ,
+        -- (_ ** Column {columnType = TEXT} "name")
     ]
+
+-- some : QueryHasExactlyOneColumn Playground.selectIdAndName
+-- some = Because
 
 joinWithZZ : SqlQueryParts () (MkQueryAstState HasTables) (MkQueryAstState HasTables)
 joinWithZZ = do
@@ -38,6 +48,8 @@ wholeQuery = do
     selectFromUser
     whereCond
     joinWithZZ
+
+
 
 
 compiled : Query SampleDatabase

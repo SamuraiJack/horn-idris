@@ -1,21 +1,22 @@
 module Language
 
--- %default total
+%default total
 
 mutual
-    data QuerySource : (aliased : Bool) -> Type where
-        Table           : (tableName : String) -> QuerySource False
-        SubQuery        : Bool -> QuerySource False
-        As              : (source : QuerySource False) -> (aliasName : String) -> QuerySource True
+    data Base : Type where
+        MkBase1         : Base
+        As              : (source : Base) -> {auto prf : Predicate source} -> Base
 
-    -- data QuerySourceIsNotAliased : QuerySource -> Type where
-    --     BecauseItIsTable        : QuerySourceIsNotAliased (Table tableName)
-    --     BecauseItIsSubquery     : QuerySourceIsNotAliased (SubQuery query)
+    data Predicate : Base -> Type where
+        MkPred          : Predicate MkBase1
 
+some : Base
 
-some : QuerySource True
+some = As MkBase1
 
-some = (Table "name" `As` "n") `As` "n"
+s : Not (Predicate a)
+s prf = ?s_rhs
+
 
 
 {-
@@ -23,7 +24,7 @@ some = (Table "name" `As` "n") `As` "n"
 *Playground> :l Test2.i
 /home/nickolay/workspace/Idris/horn/src/Test2.idr:18:1-28:
    |
-18 | some = Table "name" `As` "n"
+18 | some = MkBase1name" `As` "n"
    | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Language.some is possibly not total due to: Language.BecauseItIsTable
 
