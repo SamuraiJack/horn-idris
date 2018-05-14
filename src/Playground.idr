@@ -14,13 +14,21 @@ selectIdAndName = do
         (INTEGER ** Column "id"),
         (INTEGER ** Column "id")
         -- ,
-        -- (_ ** SubQueryExpression $ Select [
-        --     (INTEGER ** Column "id")
-        -- ])
+        -- (_ ** SubQueryExpression $ query $ Select {joinState = NoTables} [ (INTEGER ** Column "id") ])
     
         -- ,
         -- (_ ** Column {columnType = TEXT} "name")
     ]
+
+subQuery' : SqlQueryParts () (MkQueryAstState NoTables) (MkQueryAstState NoTables)
+subQuery' = Select [ (INTEGER ** Column "id") ]
+
+ast : QueryAbstractSyntaxTree
+ast = query subQuery'
+
+subQuery : ColumnExpression INTEGER
+subQuery = SubQueryExpression ast
+
 
 -- some : QueryHasExactlyOneColumn Playground.selectIdAndName
 -- some = Because
@@ -52,5 +60,5 @@ wholeQuery = do
 
 
 
-compiled : Query SampleDatabase
-compiled = compileQueryForDatabase wholeQuery
+-- compiled : Query SampleDatabase
+-- compiled = compileQueryForDatabase wholeQuery

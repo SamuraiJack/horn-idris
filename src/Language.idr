@@ -54,7 +54,7 @@ mutual
         SubQueryExpression :
             (query : QueryAbstractSyntaxTree)
             -> { auto prf : QueryHasExactlyOneColumn query }
-            -> ColumnExpression (getSqlTypeFromQueryWithOneColumn prf)
+            -> ColumnExpression ((assert_total (Language.getSqlTypeFromQueryWithOneColumn)) query {prf})
 
         Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
         ColumnInTable   : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
@@ -187,10 +187,8 @@ mutual
 
 
     namespace QueryHasExactlyOneColumn
-        data QueryHasExactlyOneColumn : (query : QueryAbstractSyntaxTree) -> Type where
-            Because     :
-                { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields (query)) }
-                -> QueryHasExactlyOneColumn query
+        data QueryHasExactlyOneColumn : (query : QueryAbstractSyntaxTree) -> { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields (query)) } -> Type where
+            Because     : QueryHasExactlyOneColumn query {prf=Because}
 
 
     namespace QueryIsValid
@@ -201,13 +199,14 @@ mutual
                 QueryIsValid query
         
                 
-    getSqlTypeFromQueryWithOneColumn : (f : QueryHasExactlyOneColumn query) -> SqlType
-    getSqlTypeFromQueryWithOneColumn f = assert_total $ case f of
-        Because {prf} =>
+    getSqlTypeFromQueryWithOneColumn : (query : QueryAbstractSyntaxTree) -> { auto f : QueryHasExactlyOneColumn query } -> SqlType
+    getSqlTypeFromQueryWithOneColumn query {f} = assert_total ( case f of
+        QueryHasExactlyOneColumn.Because {prf} =>
             let
-                (sqlType ** expression) = getElementFromProof prf
+                (sqlType ** expression) = assert_total (getElementFromProof prf)
             in
-                sqlType
+                assert_total sqlType
+    )
 
 -- EOF mutual
 
@@ -245,4 +244,4 @@ compileQueryForDatabase {db} freeQuery = MkQuery
 
 
 query : SqlQueryParts a before after -> QueryAbstractSyntaxTree
-query x = ?query_rhs
+query x = collapseToAst x

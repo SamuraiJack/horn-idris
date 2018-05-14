@@ -1,46 +1,62 @@
-module Language
+module Algebra
 
-import Control.Monad.State
-
-%default total
-
-%access public export
-
-data TableJoiningState = NoTables | HasTables
+-- data Expr = Const Int
+--           | Add Expr Expr
+--           | Mul Expr Expr
 
 
-mutual
-    record QueryAbstractSyntaxTree where
-        constructor MkQueryAbstractSyntaxTree
-
-        distinct        : Bool
-
+data ExprF : (carrier : Type) -> Type where
+    Const       : Int -> ExprF carrier
+    Add         : (a : carrier) -> (b : carrier) -> ExprF carrier
+    Mul         : (a : carrier) -> (b : carrier) -> ExprF carrier
 
 
-    
-    record QueryAstState where
-        constructor MkQueryAstState
+data Fix : (f : Type -> Type) -> Type where
+    In : f (Fix f) -> Fix f
 
-        joinState               : TableJoiningState
+unFix : Fix f -> f (Fix f)
+unFix (In x) = x
+
+implementation Functor ExprF where
+    map func (Const int) = Const int
+    map func (Add x y) = Add (func x) (func y)
+    map func (Mul x y) = Mul (func x) (func y)
+
+Algebra : (f : Type -> Type) -> Functor f => (carrier : Type) -> Type
+Algebra f carrier = f carrier -> carrier
+
+InitialAlgebra : Type
+InitialAlgebra = Algebra ExprF (Fix ExprF)
+
+Initial : InitialAlgebra
+Initial a = In a
+
+catamorphism : Functor f => Algebra f a -> (Fix f -> a)
+catamorphism alg = alg . map ((catamorphism alg)) . (unFix)
 
 
-    data SqlQueryParts : (result : Type) -> (before : QueryAstState) -> (after : QueryAstState) -> Type where
-        From :
-            (source : Bool)
-            -> SqlQueryParts
-                ()
-                (MkQueryAstState
-                    NoTables
-                )
-                (MkQueryAstState
-                    HasTables
-                )
+-----------------------------------
+Expr : Type
+Expr = Fix ExprF
 
-collapseToAst : SqlQueryParts a before after -> QueryAbstractSyntaxTree
-collapseToAst x =
-    execState (collapseToAstHelper x) (MkQueryAbstractSyntaxTree False)
-    where
-        collapseToAstHelper : SqlQueryParts a before after -> State QueryAbstractSyntaxTree a
+val : Expr
+val = In $ Add (In $ Const 1) (In $ Const 1)
 
-        collapseToAstHelper (From querySource) = ?aa3
+alg1 : Algebra ExprF Int
+alg1 (Const x) = x
+alg1 (Add a b) = a + b
+alg1 (Mul a b) = a * b
 
+
+alg2 : Algebra ExprF String
+alg2 (Const x) = show x
+alg2 (Add a b) = a ++ " + " ++ b
+alg2 (Mul a b) = a ++ " * " ++ b
+
+eval1 : Expr -> Int
+eval1 = catamorphism alg1
+
+
+
+
+-- data ExprF a = Var String | App a a | Abs String a
