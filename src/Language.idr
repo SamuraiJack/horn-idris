@@ -52,9 +52,9 @@ mutual
         FloatLiteral    : Double -> ColumnExpression FLOAT
 
         SubQueryExpression :
-            (query : QueryAbstractSyntaxTree)
-            -> { auto prf : QueryHasExactlyOneColumn query }
-            -> ColumnExpression ((assert_total (Language.getSqlTypeFromQueryWithOneColumn)) query {prf})
+            (query : SqlQueryParts a before after)
+            -> { auto prf : QueryHasExactlyOneColumn (collapseToAst query) }
+            -> ColumnExpression ((assert_total (Language.getSqlTypeFromQueryWithOneColumn)) (collapseToAst query) {f=prf})
 
         Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
         ColumnInTable   : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
@@ -187,25 +187,27 @@ mutual
 
 
     namespace QueryHasExactlyOneColumn
-        data QueryHasExactlyOneColumn : (query : QueryAbstractSyntaxTree) -> { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields (query)) } -> Type where
-            Because     : QueryHasExactlyOneColumn query {prf=Because}
+        data QueryHasExactlyOneColumn : (query : QueryAbstractSyntaxTree) -> Type where
+            Because     : (query : QueryAbstractSyntaxTree) -> { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields query) } -> QueryHasExactlyOneColumn query
 
 
-    namespace QueryIsValid
-        data QueryIsValid : (query : SqlQueryParts () before after) -> Type where
-            Because     : 
-                -- { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields (collapseToAst query)) }
-                -- -> 
-                QueryIsValid query
+    -- namespace QueryIsValid
+    --     data QueryIsValid : (query : SqlQueryParts () before after) -> Type where
+    --         Because     : 
+    --             -- { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields (collapseToAst query)) }
+    --             -- -> 
+    --             QueryIsValid query
         
                 
     getSqlTypeFromQueryWithOneColumn : (query : QueryAbstractSyntaxTree) -> { auto f : QueryHasExactlyOneColumn query } -> SqlType
-    getSqlTypeFromQueryWithOneColumn query {f} = assert_total ( case f of
-        QueryHasExactlyOneColumn.Because {prf} =>
-            let
-                (sqlType ** expression) = assert_total (getElementFromProof prf)
-            in
-                assert_total sqlType
+    
+    getSqlTypeFromQueryWithOneColumn query {f} = assert_total (?aa
+        -- case f of
+        --     QueryHasExactlyOneColumn.Because {prf} =>
+        --         let
+        --             (sqlType ** expression) = assert_total (getElementFromProof prf)
+        --         in
+        --             assert_total sqlType
     )
 
 -- EOF mutual

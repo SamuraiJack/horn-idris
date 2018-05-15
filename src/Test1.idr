@@ -29,32 +29,39 @@ Algx :
 Algx (prop1, sucProp1) (prop2, sucProp2) = ((prop1, prop2), (\a => \(prop1, prop2) => (sucProp1 a prop1, sucProp2 a prop2)))
 
 
+HListAlg : ListAlgebra a (List Type)
+HListAlg = (
+    [],
+    (\elem, prop => ?aa)
+)
 
 
+-- using (max_value : Nat, list : List Nat)
+--     data AllElementsOfListAreSmallerThan : Type where
+--         NoElementsAreSmaller    : AllElementsOfListAreSmallerThan
 
-data AllElementsOfListAreSmallerThan : (max_value : Nat) -> (list : List Nat) -> Type where
-    NoElementsAreSmaller    : AllElementsOfListAreSmallerThan max_value []
-    
-    SomeElementsAreSmaller  : 
-        { max_value : Nat }
-        -> { value : Nat } 
-        -> AllElementsOfListAreSmallerThan max_value list 
-        -> { prf : LTE value max_value }
-        -> AllElementsOfListAreSmallerThan max_value (value :: list)
+--         SomeElementsAreSmaller  : { value : Nat } 
+--             -> AllElementsOfListAreSmallerThan max_value list 
+--             -> { prf : LTE value max_value }
+--             -> AllElementsOfListAreSmallerThan max_value (value :: list)
 
 
-allElementsAreSmallerThan : (value : Nat) -> (list : List Nat) -> Dec (AllElementsOfListAreSmallerThan value list)
-allElementsAreSmallerThan value [] = Yes NoElementsAreSmaller
-allElementsAreSmallerThan value (x :: xs) = case decideLTE x value of
-    Yes headProof   => case allElementsAreSmallerThan value xs of
-        (Yes tailProof) => Yes (SomeElementsAreSmaller {value=x} {max_value=value} tailProof {prf=headProof})
-        (No contra)     => ?aa_4
-    No contra       => ?aa_2
+-- alg : AllElementsOfListAreSmallerThan max_value list ->
+
+-- allElementsAreSmallerThan : (value : Nat) -> (list : List Nat) -> Dec (AllElementsOfListAreSmallerThan value list)
+-- allElementsAreSmallerThan value [] = Yes NoElementsAreSmaller
+-- allElementsAreSmallerThan value (x :: xs) = case decideLTE x value of
+--     Yes headProof   => case allElementsAreSmallerThan value xs of
+--         (Yes tailProof) => Yes (SomeElementsAreSmaller {value=x} {max_value=value} tailProof {prf=headProof})
+--         (No contra)     => ?aa_4
+--     No contra       => ?aa_2
 
 
-allElementsSmallerAlg : (elem : Nat) -> (prop : AllElementsOfListAreSmallerThan value list) -> AllElementsOfListAreSmallerThan value (elem :: list)
+-- using (max_value : Nat, list : List Nat)
+--     AllElsSmallerAlg : (elem : Nat) -> (prop : AllElementsOfListAreSmallerThan) -> AllElementsOfListAreSmallerThan
 
--- AlgIncreasing : ListAlgebra Nat (SomeElementsAreSmaller 10 [ 1, 2 ])
+--     AlgIncreasing : ListAlgebra Nat (SomeElementsAreSmaller {max_value=10} {value=1} (NoElementsAreSmaller) (LTE 1 10))
+
 -- AlgIncreasing = (
 --     NoElementsAreSmaller, 
 --     \el, prop => case prop of
