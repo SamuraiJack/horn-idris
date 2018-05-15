@@ -1,4 +1,4 @@
-module Playground
+module ElaboratorTest
 
 import SqlTypes
 import Language
@@ -11,7 +11,7 @@ import Data.So
 
 selectIdAndName : SqlQueryParts () (MkQueryAstState joinState) (MkQueryAstState joinState)
 selectIdAndName = do
-    assert_total $ Select [
+    Select [
         (INTEGER ** Column "id")
         -- ,
         -- (INTEGER ** Column "id")
@@ -25,14 +25,80 @@ selectIdAndName = do
 subQuery'' : SqlQueryParts () (MkQueryAstState NoTables) (MkQueryAstState NoTables)
 subQuery'' = Select {joinState = NoTables} [ (INTEGER ** Column "id") ]
 
-one_column' : QueryHasExactlyOneColumn (collapseToAst Playground.subQuery'')
-one_column' = assert_total $ Because
+data MyVect : (elem : Type) -> (n : Nat) -> Type where
+    Nil     : MyVect elem Z
+    (::)    : (a : elem) -> MyVect elem k -> MyVect elem (S k)
 
-subQuery1 : ColumnExpression INTEGER
-subQuery1 = SubQueryExpression $ subQuery''
+-- triv : Elab ()
+-- triv = do 
+--     compute
+--     g <- getGoal
+--     case (snd g) of
+--         `(MyVect ~elem ~len : Type)    => do 
+--             fill `([] : MyVect)
+--             solve
+--         `(Nat : Type)    => do 
+--             fill `(1 : Nat)
+--             solve
+--         `(() : Type)    => do 
+--             fill `(() : ())
+--             solve
+--         otherGoal       => fail [ TermPart otherGoal, TextPart "is not trivial" ]
+
+-- zxc : ()
+-- zxc = %runElab triv
+
+-- zzz : Nat
+-- zzz = %runElab triv
+
+-- zz1 : MyVect Nat 5
+-- zz1 = %runElab triv
+
+-- triv : Elab ()
+-- triv = do 
+--     compute
+--     g <- getGoal
+--     case (snd g) of
+--         `(~v : QueryHasExactlyOneColumn)    => do 
+--             fill `(Because ~v)
+--             solve
+--         otherGoal       => fail [ TextPart "Can't solve QueryHasExactlyOneColumn" ]
+
+
+mkId : Elab ()
+mkId = do 
+    x <- gensym "x"
+    attack
+    intro x
+    fill (Var x); solve
+    solve -- the attack
+
+idNat : Nat -> Nat
+idNat = %runElab mkId
+
+buildQueryHasExactlyOneColumn : Elab ()
+buildQueryHasExactlyOneColumn = do 
+    (name, tt) <- getGoal
+    ?aa
+    case tt of
+        App z x => 
+            -- fill (`(Because ~(x)))
+            solve
+        _       => 
+            fail [ TextPart "No app" ]
+
+-- -- (x) <- gensym "x"
+-- -- attack
+-- -- intro x
+-- -- fill (Var x); solve
+-- -- solve -- the attack
+
+one_column' : QueryHasExactlyOneColumn (collapseToAst ElaboratorTest.subQuery'')
+one_column' = Because
+
 
 -- subQuery' : AnyColumnExpression'
--- subQuery' = (_ ** SubQueryExpression $ subQuery'')
+-- subQuery' = (_ ** SubQueryExpression $ Select {joinState = NoTables} [ (INTEGER ** Column "id") ])
 
 ast : QueryAbstractSyntaxTree
 ast = query (selectIdAndName {joinState=NoTables})
@@ -51,8 +117,8 @@ ast = query (selectIdAndName {joinState=NoTables})
 -- subQuery : ColumnExpression INTEGER
 -- subQuery = SubQueryExpression ast
 
-one_column : QueryHasExactlyOneColumn Playground.ast
-one_column = assert_total $ Because
+one_column : QueryHasExactlyOneColumn ElaboratorTest.ast
+one_column = Because
 
 -- joinWithZZ : SqlQueryParts () (MkQueryAstState HasTables) (MkQueryAstState HasTables)
 -- joinWithZZ = do

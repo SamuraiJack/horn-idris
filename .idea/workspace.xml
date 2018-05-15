@@ -2,9 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4a234acc-b9b5-4790-860b-47952737b649" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/src/Language.idr" beforeDir="false" afterPath="$PROJECT_DIR$/src/Language.idr" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Playground.idr" beforeDir="false" afterPath="$PROJECT_DIR$/src/Playground.idr" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Test1.idr" beforeDir="false" afterPath="$PROJECT_DIR$/src/Test1.idr" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -85,12 +83,12 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1526373545204</updated>
-      <workItem from="1526373546633" duration="2480000" />
+      <workItem from="1526373546633" duration="3168000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="2480000" />
+    <option name="totallyTimeSpent" value="3168000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="1918" y="-3" width="1766" height="1087" extended-state="6" />
