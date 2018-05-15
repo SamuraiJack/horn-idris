@@ -49,7 +49,7 @@ ast = query (selectIdAndName {joinState=NoTables})
 -- subQuery = SubQueryExpression ast
 
 one_column : QueryHasExactlyOneColumn Playground.ast
-one_column = Because Playground.ast
+one_column = (assert_total Because) Playground.ast
 
 -- joinWithZZ : SqlQueryParts () (MkQueryAstState HasTables) (MkQueryAstState HasTables)
 -- joinWithZZ = do
