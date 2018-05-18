@@ -12,6 +12,10 @@ import Data.Vect
 
 %access public export
 
+data Image : {A, B : Type} -> (f : A -> B) -> B -> Type where
+    MkImage   : (x : ty) -> Image f (f x)
+
+
 data TableJoiningState  = NoTables | HasTables
 data TableJoiningType   = Inner | Outer | Left | Right
 
@@ -61,10 +65,9 @@ mutual
 
         SubQueryExpression :
             (query : SqlQueryParts a before after)
-            -> { auto prf : QueryHasExactlyOneColumn (collapseToAst query) }
-            -- -> { auto sqlType : Language.getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f=prf} }
-            -- -> ColumnExpression (Language.getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f=prf})
-            -> ColumnExpression (URGH prf)
+            -> { auto im : Image Langugage.queryHasExactlyOneColumn query }
+            -> { prf : QueryHasExactlyOneColumn (collapseToAst query) }
+            -> ColumnExpression (Language.getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f=prf})
 
         Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
         ColumnInTable   : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
@@ -105,6 +108,8 @@ mutual
         -- default value will be just `TRUE`
         whereCondition  : ColumnExpression BOOLEAN
 
+
+    -- fieldDecEq : (ast : QueryAbstractSyntaxTree) -> { 
 
 
     record QueryAstState where
@@ -198,7 +203,9 @@ mutual
 
     namespace QueryHasExactlyOneColumn
         data QueryHasExactlyOneColumn : (ast : QueryAbstractSyntaxTree) -> Type where
-            Because     : {ast : QueryAbstractSyntaxTree} -> { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields ast) }-> QueryHasExactlyOneColumn ast
+            Because     : { ast : QueryAbstractSyntaxTree} 
+                -> { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields ast) }
+                -> QueryHasExactlyOneColumn ast
 
 
     -- namespace QueryIsValid
@@ -212,28 +219,48 @@ mutual
     getSqlTypeFromQueryWithOneColumn : (query : QueryAbstractSyntaxTree) -> { auto f : QueryHasExactlyOneColumn query } -> SqlType
     
     getSqlTypeFromQueryWithOneColumn query {f} = assert_total (
-        ?aa
-        -- case assert_total f of
-        --     QueryHasExactlyOneColumn.Because {prf} =>
-        --         let
-        --             (sqlType ** expression) = assert_total $ getElementFromProof prf
-        --         in
-        --             assert_total sqlType
+        case assert_total f of
+            QueryHasExactlyOneColumn.Because {prf} =>
+                let
+                    (sqlType ** expression) = assert_total $ getElementFromProof prf
+                in
+                    assert_total sqlType
     )
 
-    URGH : (f : QueryHasExactlyOneColumn query) -> SqlType
-    URGH f = assert_total (
-        ?bb
-        -- case assert_total f of
-        --     QueryHasExactlyOneColumn.Because {prf} =>
-        --         let
-        --             (sqlType ** expression) = assert_total $ getElementFromProof prf
-        --         in
-        --             assert_total sqlType
-    )
+    queryHasExactlyOneColumn : (ast : QueryAbstractSyntaxTree) -> Dec (QueryHasExactlyOneColumn ast)
 
+    noColsProof : (p : [] = fields ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
+    noColsProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
+        Because impossible
+
+    twoAndMoreProof : (p : (x :: (y :: xs)) = fields ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
+    twoAndMoreProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
+        Because impossible
+
+
+    queryHasExactlyOneColumn ast with (fields ast) proof p
+        
+        queryHasExactlyOneColumn ast | ([]) = assert_total $ 
+            No (\colProof => noColsProof p colProof)
+        
+        queryHasExactlyOneColumn ast | (x :: []) = assert_total $ 
+            Yes $ Because {ast = ast} {prf = rewrite sym p in (Because {x = x})}
+        
+        queryHasExactlyOneColumn ast | (x :: y :: xs) = assert_total $ 
+            No (\colProof => twoAndMoreProof p colProof)
+    
 
 -- EOF mutual
+
+
+
+
+-- subQueryExpression :
+--     (query : SqlQueryParts a before after)
+--     -> { prf : QueryHasExactlyOneColumn (collapseToAst query) }
+--     -- -> { pp : So (queryHasExactlyOneColumn query
+--     -> ColumnExpression (Language.getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f=prf})
+
 
 extractTableNames : (ast : QueryAbstractSyntaxTree) -> List String
 extractTableNames (MkQueryAbstractSyntaxTree distinct fields baseSource joins whereCondition) =

@@ -5,6 +5,7 @@ module SQL
 
 data SqlType = BOOLEAN | INTEGER
 
+
 mutual
     data ColumnExpression : SqlType -> Type where
         BooleanLiteral  : Bool -> ColumnExpression BOOLEAN
@@ -43,7 +44,7 @@ mutual
                 -> QueryHasNoColumns (do query; Where boolExpression)
 
         data QueryHasExactlyOneColumn : (query : SqlQuery a) -> Type where
-            Start : QueryHasExactlyOneColumn (SelectColumn (sqlType ** columnExpression))
+            Start : { exp : AnyColumnExpression'} -> QueryHasExactlyOneColumn (SelectColumn exp)
             
             OkToAppendWhere : 
                 {a : Type}
@@ -60,12 +61,20 @@ mutual
 
     getSqlTypeFromQueryWithOneColumn : (query : SqlQuery a) -> { auto prf : QueryHasExactlyOneColumn query } -> SqlType
     
-    getSqlTypeFromQueryWithOneColumn query {prf} = (
+    getSqlTypeFromQueryWithOneColumn query {prf} = assert_total (
         case prf of
-            Start {sqlType} => sqlType
+            Start {exp = (sqlType ** columnExp)} => sqlType
             (OkToAppendWhere {query} prf') => getSqlTypeFromQueryWithOneColumn query {prf=prf'}
             (OkToAppendSelectToQueryWOColumns {sqlType} prfNoColumns) => sqlType
     )
+
+
+queryHasExactlyOneColumn : (query : SqlQuery a) -> Dec (QueryHasExactlyOneColumn query)
+queryHasExactlyOneColumn (SelectColumn exp) = Yes Start
+queryHasExactlyOneColumn (Where x) = ?startwhere
+queryHasExactlyOneColumn (x >>= f) = case queryHasExactlyOneColumn x of 
+    (Yes prf) => ?zz_1
+    (No contra) => ?zz_2
 
 
 
@@ -76,14 +85,14 @@ query = do
 
 
 onlyOne : QueryHasExactlyOneColumn SQL.query
-onlyOne = OkToAppendWhere Start
+onlyOne = assert_total $ OkToAppendWhere Start
 
-queryType : SqlType
-queryType = getSqlTypeFromQueryWithOneColumn query
+-- queryType : SqlType
+-- queryType = assert_total $ getSqlTypeFromQueryWithOneColumn query
 
-subQuery : SqlQuery ()
-subQuery = do
-    SelectColumn (_ ** SubQueryExpression (do SelectColumn (_ ** IntegerLiteral 11);))
+-- subQuery : SqlQuery ()
+-- subQuery = assert_total $ do
+--     SelectColumn (_ ** SubQueryExpression (do SelectColumn (_ ** IntegerLiteral 11);))
 
 -- onlyOne' : QueryHasExactlyOneColumn SQL.subQuery
 -- onlyOne' = Start
