@@ -1,8 +1,6 @@
 module LanguageReduced
 
 import Control.Monad.State
-import Data.So
-import Data.Vect
 
 %default total
 %access public export
