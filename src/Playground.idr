@@ -17,7 +17,7 @@ selectIdAndName = do
         -- (INTEGER ** Column "id")
         -- ,
         -- (_ ** SubQueryExpression $ Select {joinState = NoTables} [ (INTEGER ** Column "id") ])
-    
+
         -- ,
         -- (_ ** Column {columnType = TEXT} "name")
     ]
@@ -29,7 +29,7 @@ one_column' : QueryHasExactlyOneColumn (collapseToAst Playground.subQuery'')
 one_column' = assert_total $ Because
 
 subQuery1 : ColumnExpression INTEGER
-subQuery1 = SubQueryExpression $ subQuery''
+subQuery1 = SubQueryExpression subQuery'' {prf=one_column'}
 
 -- subQuery' : AnyColumnExpression'
 -- subQuery' = (_ ** SubQueryExpression $ subQuery'')

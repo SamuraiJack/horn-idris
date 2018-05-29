@@ -26,6 +26,10 @@ namespace ListHasExactlyOneElement
 getElementFromProof : (prf : ListHasExactlyOneElement ty xs) -> ty
 getElementFromProof (Because {x}) = assert_total x
 
+
+data DecResolvedToYes : (prop : Type) -> (dec : Dec prop) -> Type where
+    MkDecResolvedToYes : (prf : prop) -> DecResolvedToYes prop (Yes prf)
+
 -- someList : List Nat
 -- someList = [ 1 ]
 
@@ -65,8 +69,9 @@ mutual
 
         SubQueryExpression :
             (query : SqlQueryParts a before after)
-            -> { auto im : Image Langugage.queryHasExactlyOneColumn query }
-            -> { prf : QueryHasExactlyOneColumn (collapseToAst query) }
+            -- -> { auto im : Image queryHasExactlyOneColumn query }
+            -> { auto im : DecResolvedToYes (QueryHasExactlyOneColumn (collapseToAst query)) (queryHasExactlyOneColumn (collapseToAst query)) }
+            -- -> { prf : QueryHasExactlyOneColumn (collapseToAst query) }
             -> ColumnExpression (Language.getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f=prf})
 
         Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
@@ -108,8 +113,10 @@ mutual
         -- default value will be just `TRUE`
         whereCondition  : ColumnExpression BOOLEAN
 
+    fieldsAcc : QueryAbstractSyntaxTree -> List AnyColumnExpression'
+    fieldsAcc = fields
 
-    -- fieldDecEq : (ast : QueryAbstractSyntaxTree) -> { 
+    -- fieldDecEq : (ast : QueryAbstractSyntaxTree) -> {
 
 
     record QueryAstState where
@@ -203,21 +210,21 @@ mutual
 
     namespace QueryHasExactlyOneColumn
         data QueryHasExactlyOneColumn : (ast : QueryAbstractSyntaxTree) -> Type where
-            Because     : { ast : QueryAbstractSyntaxTree} 
+            Because     : { ast : QueryAbstractSyntaxTree}
                 -> { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields ast) }
                 -> QueryHasExactlyOneColumn ast
 
 
     -- namespace QueryIsValid
     --     data QueryIsValid : (query : SqlQueryParts () before after) -> Type where
-    --         Because     : 
+    --         Because     :
     --             -- { auto prf : ListHasExactlyOneElement AnyColumnExpression' (fields (collapseToAst query)) }
-    --             -- -> 
+    --             -- ->
     --             QueryIsValid query
-        
-                
+
+
     getSqlTypeFromQueryWithOneColumn : (query : QueryAbstractSyntaxTree) -> { auto f : QueryHasExactlyOneColumn query } -> SqlType
-    
+
     getSqlTypeFromQueryWithOneColumn query {f} = assert_total (
         case assert_total f of
             QueryHasExactlyOneColumn.Because {prf} =>
@@ -229,26 +236,26 @@ mutual
 
     queryHasExactlyOneColumn : (ast : QueryAbstractSyntaxTree) -> Dec (QueryHasExactlyOneColumn ast)
 
-    noColsProof : (p : [] = fields ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
+    noColsProof : (p : [] = fieldsAcc ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
     noColsProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
         Because impossible
 
-    twoAndMoreProof : (p : (x :: (y :: xs)) = fields ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
+    twoAndMoreProof : (p : (x :: (y :: xs)) = fieldsAcc ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
     twoAndMoreProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
         Because impossible
 
 
     queryHasExactlyOneColumn ast with (fields ast) proof p
-        
-        queryHasExactlyOneColumn ast | ([]) = assert_total $ 
+
+        queryHasExactlyOneColumn ast | ([]) = assert_total $
             No (\colProof => noColsProof p colProof)
-        
-        queryHasExactlyOneColumn ast | (x :: []) = assert_total $ 
+
+        queryHasExactlyOneColumn ast | (x :: []) = assert_total $
             Yes $ Because {ast = ast} {prf = rewrite sym p in (Because {x = x})}
-        
-        queryHasExactlyOneColumn ast | (x :: y :: xs) = assert_total $ 
+
+        queryHasExactlyOneColumn ast | (x :: y :: xs) = assert_total $
             No (\colProof => twoAndMoreProof p colProof)
-    
+
 
 -- EOF mutual
 
