@@ -23,3 +23,9 @@ Algebra f carrier = f carrier -> carrier
 my : Type
 my = Algebra ExprF Int
 
+
+
+subList : Eq a => (sub : List a) -> (sup : List a) -> Dec (SubList sub sup)
+subList sub sup = case isInfixOf sub sup of
+    True => ?zz
+    False => ?zxc

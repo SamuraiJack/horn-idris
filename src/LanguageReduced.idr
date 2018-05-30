@@ -5,6 +5,8 @@ import Database
 import Util
 
 import Control.Monad.State
+import Data.So
+import Data.Vect
 
 %default total
 %access public export
@@ -19,7 +21,8 @@ mutual
     querySourceName : (source : QuerySource) -> Maybe TableName
     querySourceName (Table tableName) = Just tableName
     querySourceName (SubQuery x) = Nothing
-    querySourceName (AliasAs (Table tableName) _) = Just tableName
+    querySourceName (AliasAs source aliasName) = Just aliasName
+
 
     data TableJoiningType   = Inner | Outer | Left | Right
 
@@ -38,7 +41,7 @@ mutual
         SubQueryExpression :
             (query : PartialQuery a)
             -> { prf : QueryHasExactlyOneColumn (collapseToAst query) }
-            -> ColumnExpression (getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f=prf})
+            -> ColumnExpression (getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f = prf})
 
         (+)             : ColumnExpression sqlType -> ColumnExpression sqlType -> ColumnExpression sqlType
 
@@ -144,26 +147,43 @@ getExpressionSources' (sqlType ** pf) = case pf of
 getExpressionSources : (ast : QueryAbstractSyntaxTree) -> List TableName
 getExpressionSources (MkQueryAbstractSyntaxTree fields baseTable joins) = concat $ map getExpressionSources' fields
 
+getExpressionSourcesVect : (ast : QueryAbstractSyntaxTree) -> Vect (length (getExpressionSources ast)) TableName
+getExpressionSourcesVect ast = fromList (getExpressionSources ast)
+
 
 getQuerySources : (ast : QueryAbstractSyntaxTree) -> List TableName
 getQuerySources ast = ?zxc
 
-data AllColumnTablePrefixesResolvesToValidSource : (ast : QueryAbstractSyntaxTree) -> Type where
+-- Property 1
+-- Query source is either a table name or alias name. All query sources (like "select querySource.columnName")
+-- should resolve to actual tables, specified in the "From" + "Joins"
+namespace AllColumnTablePrefixesResolvesToValidSource
+
+    data ResolvesCorrectly : (ast : QueryAbstractSyntaxTree) -> (sourceName : TableName) -> Type where
+        Indeed : Elem sourceName (getExpressionSourcesVect ast) -> ResolvesCorrectly ast sourceName
 
 
+    -- data ResolvesCorrectly : (expressionSources : List TableName) -> (querySources : ListTableName) -> Type where
+    --     Indeed : So -> ResolvesCorrectly expressionSources querySources
+
+    data AllColumnTablePrefixesResolvesToValidSource : (ast : QueryAbstractSyntaxTree) -> Type where
+        Because     : SubList (getExpressionSources ast) (getQuerySources ast) -> AllColumnTablePrefixesResolvesToValidSource ast
 
 
+allColumnTablePrefixesResolvesToValidSource : (ast : QueryAbstractSyntaxTree) -> Dec (AllColumnTablePrefixesResolvesToValidSource ast)
+allColumnTablePrefixesResolvesToValidSource ast = ?allColumnTablePrefixesResolvesToValidSource_rhs
 
-data ProofColumnReferences : Type where
+
+-- Property 2
+data ProofColumnReferences : (ast : QueryAbstractSyntaxTree) -> Type where
 
 
 record CompleteQuery where
     constructor MkCompleteQuery
 
     partialQuery            : PartialQuery ()
-    ast                     : QueryAbstractSyntaxTree
 
-    proofColumnReferences   : ProofColumnReferences
+    proofColumnReferences   : ProofColumnReferences (collapseToAst partialQuery)
 
 -- PartialQuery -> PartialQuery -> Either (ErrorPartialCombination) PartialQuery
 --
