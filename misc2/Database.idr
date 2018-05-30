@@ -9,28 +9,23 @@ import SqlTypes
 TableName : Type
 TableName = String
 
-ColumnName : Type
-ColumnName = String
-
-DatabaseSchemaName : Type
-DatabaseSchemaName = String
-
 
 record DatabaseColumn where
     constructor MkDatabaseColumn
-    name    : ColumnName
+    name    : String
     type    : SqlType
 
 
 record DatabaseTable where
     constructor MkDatabaseTable
-    name        : TableName
+    name        : String
     columns     : List DatabaseColumn
+
 
 
 record DatabaseSchema where
     constructor MkDatabaseSchema
-    name        : DatabaseSchemaName
+    name        : String
     tables      : List DatabaseTable
 
 
@@ -49,22 +44,6 @@ databaseHasTable dbSchema tableName = foldl
 
 
 
-data DatabaseHasTable : (dbSchema : DatabaseSchema) -> (tableName : String) -> Type where
-    Here :
-        DatabaseHasTable
-            (MkDatabaseSchema dbName ((MkDatabaseTable tableName tableColumns) :: xs))
-            tableName
-    There :
-        DatabaseHasTable
-            (MkDatabaseSchema dbName tables)
-            tableName
-        -> DatabaseHasTable
-            (MkDatabaseSchema dbName (table :: tables))
-            tableName
-
-
---  EXAMPLES --
-
 SampleDatabase : DatabaseSchema
 
 SampleDatabase = MkDatabaseSchema
@@ -82,3 +61,17 @@ SampleDatabase = MkDatabaseSchema
             MkDatabaseColumn "employeesNum" FLOAT
         ]
     ]
+
+
+data DatabaseHasTable : (dbSchema : DatabaseSchema) -> (tableName : String) -> Type where
+    Here :
+        DatabaseHasTable
+            (MkDatabaseSchema dbName ((MkDatabaseTable tableName tableColumns) :: xs))
+            tableName
+    There :
+        DatabaseHasTable
+            (MkDatabaseSchema dbName tables)
+            tableName
+        -> DatabaseHasTable
+            (MkDatabaseSchema dbName (table :: tables))
+            tableName

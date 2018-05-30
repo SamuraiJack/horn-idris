@@ -29,7 +29,7 @@ one_column' : QueryHasExactlyOneColumn (collapseToAst Playground.subQuery'')
 one_column' = assert_total $ Because
 
 subQuery1 : ColumnExpression INTEGER
-subQuery1 = SubQueryExpression subQuery'' {prf=one_column'}
+subQuery1 = let x = SubQueryExpression subQuery'' {prf=one_column'} in x
 
 -- subQuery' : AnyColumnExpression'
 -- subQuery' = (_ ** SubQueryExpression $ subQuery'')

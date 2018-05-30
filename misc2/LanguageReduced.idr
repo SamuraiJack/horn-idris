@@ -1,30 +1,24 @@
 module LanguageReduced
 
-import SqlTypes
-import Database
-import Util
-
 import Control.Monad.State
 
 %default total
 %access public export
 
+data SqlType = BOOLEAN | TEXT | INTEGER | FLOAT | NULLABLE SqlType
+
+namespace ListHasExactlyOneElement
+    data ListHasExactlyOneElement : (a : Type) -> List a -> Type where
+        Because     : ListHasExactlyOneElement ty (x :: [])
+
+getElementFromProof : (prf : ListHasExactlyOneElement ty xs) -> ty
+getElementFromProof (Because {x}) = assert_total x
+
 mutual
     data QuerySource : Type where
-        Table           : (tableName : TableName) -> QuerySource
+        Table           : (tableName : String) -> QuerySource
         SubQuery        : (query : PartialQuery a) -> QuerySource
-        AliasAs         : (source : QuerySource) -> (aliasName : TableName) -> QuerySource
-
-
-    querySourceName : (source : QuerySource) -> Maybe TableName
-    querySourceName (Table tableName) = Just tableName
-    querySourceName (SubQuery x) = Nothing
-    querySourceName (AliasAs (Table tableName) _) = Just tableName
-
-    data TableJoiningType   = Inner | Outer | Left | Right
-
-    data TableJoining       = MkTableJoining QuerySource TableJoiningType (ColumnExpression BOOLEAN)
-
+        AliasAs         : (source : QuerySource) -> (aliasName : String) -> QuerySource
 
     data ColumnExpression : SqlType -> Type where
         BooleanLiteral  : Bool -> ColumnExpression BOOLEAN
@@ -40,7 +34,7 @@ mutual
             -> { prf : QueryHasExactlyOneColumn (collapseToAst query) }
             -> ColumnExpression (getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f=prf})
 
-        (+)             : ColumnExpression sqlType -> ColumnExpression sqlType -> ColumnExpression sqlType
+        (+)             : ColumnExpression INTEGER -> ColumnExpression INTEGER -> ColumnExpression INTEGER
 
     AnyColumnExpression : Type
     AnyColumnExpression = (sqlType ** ColumnExpression sqlType)
@@ -50,8 +44,6 @@ mutual
 
         fields          : List AnyColumnExpression
         baseTable       : Maybe QuerySource
-        joins           : List TableJoining
-
 
     fieldsAcc : QueryAbstractSyntaxTree -> List AnyColumnExpression
     fieldsAcc = fields
@@ -61,14 +53,12 @@ mutual
         Select          : List AnyColumnExpression -> PartialQuery ()
         Pure            : a -> PartialQuery a
         From            : (source : QuerySource) -> PartialQuery ()
-        LeftJoin        : (source : QuerySource) -> (joinExpression : ColumnExpression BOOLEAN) -> PartialQuery ()
-
         (>>=)           : PartialQuery a -> (a -> PartialQuery b) -> PartialQuery b
 
 
     collapseToAst : PartialQuery a -> QueryAbstractSyntaxTree
     collapseToAst x =
-        execState (collapseToAstHelper x) (MkQueryAbstractSyntaxTree [] Nothing [])
+        execState (collapseToAstHelper x) (MkQueryAbstractSyntaxTree [] Nothing)
         where
             collapseToAstHelper : PartialQuery a -> State QueryAbstractSyntaxTree a
 
@@ -79,9 +69,6 @@ mutual
 
             collapseToAstHelper (From querySource) = do
                 modify (record { baseTable = Just querySource })
-
-            collapseToAstHelper (LeftJoin querySource joinExpression) = do
-                modify (record { joins $= ((MkTableJoining querySource Left joinExpression) ::) })
 
             collapseToAstHelper (x >>= f) = do
                 res <- collapseToAstHelper x
@@ -130,23 +117,8 @@ mutual
 
 -- EOF mutual
 
-getExpressionSources' : AnyColumnExpression -> List TableName
-getExpressionSources' (sqlType ** pf) = case pf of
-    (BooleanLiteral x) => []
-    (IntegerLiteral x) => []
-    (Column columnName) => []
-    (ColumnInTable tableName columnName) => [ tableName ]
-    (AsExpr x aliasName) => getExpressionSources' (sqlType ** x)
-    (SubQueryExpression query) => []
-    (x + y) => getExpressionSources' (sqlType ** x) ++ getExpressionSources' (sqlType ** y)
 
-
-getExpressionSources : (ast : QueryAbstractSyntaxTree) -> List TableName
-getExpressionSources (MkQueryAbstractSyntaxTree fields baseTable joins) = concat $ map getExpressionSources' fields
-
-
-getQuerySources : (ast : QueryAbstractSyntaxTree) -> List TableName
-getQuerySources ast = ?zxc
+tableNamesInExpressions : (ast : QueryAbstractSyntaxTree) -> List TableName
 
 data AllColumnTablePrefixesResolvesToValidSource : (ast : QueryAbstractSyntaxTree) -> Type where
 
@@ -191,7 +163,7 @@ subQuery : PartialQuery ()
 subQuery = Select [ (INTEGER ** Column "id") ]
 
 one_column : QueryHasExactlyOneColumn (collapseToAst LanguageReduced.subQuery)
-one_column = LanguageReduced.QueryHasExactlyOneColumn.Because {prf = Util.ListHasExactlyOneElement.Because}
+one_column = LanguageReduced.QueryHasExactlyOneColumn.Because {prf = LanguageReduced.ListHasExactlyOneElement.Because}
 
 -- subQuery1 : ColumnExpression INTEGER
 -- subQuery1 = SubQueryExpression subQuery {prf = one_column}
