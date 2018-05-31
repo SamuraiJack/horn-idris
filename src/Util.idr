@@ -9,6 +9,9 @@ namespace ListHasExactlyOneElement
     data ListHasExactlyOneElement : (a : Type) -> List a -> Type where
         Because     : ListHasExactlyOneElement ty (x :: [])
 
+    Uninhabited (ListHasExactlyOneElement a []) where
+        uninhabited Because impossible    
+
 getElementFromProof : (prf : ListHasExactlyOneElement ty xs) -> ty
 getElementFromProof (Because {x}) = assert_total x
 
