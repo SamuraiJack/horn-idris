@@ -30,6 +30,9 @@ mutual
 
     data TableJoining       = MkTableJoining QuerySource TableJoiningType (ColumnExpression BOOLEAN)
 
+    querySourceFromTableJoining : TableJoining -> QuerySource
+    querySourceFromTableJoining (MkTableJoining querySource _ _) = querySource
+
 
     ----
     data ColumnExpression : SqlType -> Type where
@@ -135,33 +138,25 @@ mutual
                 -> { auto prf : ListHasExactlyOneElement QuerySource (baseTableAcc ast) }
                 -> QueryHasExactlyOneBaseTable ast
 
-        noColsProof1 : (p : [] = baseTableAcc ast) -> QueryHasExactlyOneBaseTable ast -> Void
-        noColsProof1 p (Because {ast} {prf}) = ?nocols
+        noColsProof : (p : [] = baseTableAcc ast) -> QueryHasExactlyOneBaseTable ast -> Void
+        -- noColsProof p (Because {ast} {prf}) = case p of
+        --     Refl impossible
 
-        -- noColsProof : (p : [] = baseTableAcc ast) -> (colProof : QueryHasExactlyOneBaseTable ast) -> Void
-        -- -- noColsProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
-        -- --     Because impossible
-        -- noColsProof p (Because {ast} {prf}) = case prf of
-        --     Because {x} => ?zxc
-        --
-        --
-        -- twoAndMoreProof : (p : (x :: (y :: xs)) = baseTableAcc ast) -> (colProof : QueryHasExactlyOneBaseTable ast) -> Void
-        -- -- twoAndMoreProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
-        -- --     Because impossible
-        --
+        twoAndMoreProof : (p : (x :: (y :: xs)) = baseTableAcc ast) -> (colProof : QueryHasExactlyOneBaseTable ast) -> Void
+        -- twoAndMoreProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
+        --     Because impossible
+
         queryHasExactlyOneBaseTable : (ast : QueryAbstractSyntaxTree) -> Dec (QueryHasExactlyOneBaseTable ast)
         queryHasExactlyOneBaseTable ast with (baseTableAcc ast) proof p
 
-            queryHasExactlyOneBaseTable ast | ([]) = No ?noColsProof
-            -- assert_total $
-            --     No (\colProof => noColsProof p colProof)
+            queryHasExactlyOneBaseTable ast | ([]) = assert_total $
+                No (\colProof => noColsProof p colProof)
 
             queryHasExactlyOneBaseTable ast | (x :: []) = assert_total $
                 Yes $ Because {ast = ast} {prf = rewrite sym p in (Because {x = x})}
 
-            queryHasExactlyOneBaseTable ast | (x :: y :: xs) = ?zxc2
-                -- assert_total $
-                -- No (\colProof => twoAndMoreProof p colProof)
+            queryHasExactlyOneBaseTable ast | (x :: y :: xs) = assert_total $
+                No (\colProof => twoAndMoreProof p colProof)
 
 
     ----
@@ -198,37 +193,72 @@ getExpressionSourcesVect ast = fromList (getExpressionSources ast)
 
 ----
 getQuerySources : (ast : QueryAbstractSyntaxTree) -> List TableName
-getQuerySources ast = ?zxc
+getQuerySources ast =
+    let
+        querySources'   = map querySourceFromTableJoining (joins ast)
+        querySources    = (baseTable ast) ++ querySources'
+        maybeNames      = map querySourceName querySources
+    in
+        onlyJust maybeNames
 
+getQuerySourcesVect : (ast : QueryAbstractSyntaxTree) -> Vect (length (getQuerySources ast)) TableName
+getQuerySourcesVect ast = fromList (getQuerySources ast)
 
 ----
 -- Property 1
 -- Query source is either a table name or alias name. All query sources (like "select querySource.columnName")
 -- should resolve to actual tables, specified in the "From" + "Joins"
-namespace AllColumnTablePrefixesResolvesToValidSource
+namespace AllSourceNamesResolvesCorrectly
 
+    ----
     data SourceNameResolvesCorrectly : (ast : QueryAbstractSyntaxTree) -> (sourceName : TableName) -> Type where
-        Indeed : {auto prf : Elem sourceName (getExpressionSourcesVect ast) } -> SourceNameResolvesCorrectly ast sourceName
+        Indeed : {auto prf : Elem sourceName (getQuerySourcesVect ast) } -> SourceNameResolvesCorrectly ast sourceName
 
 
+    contra' : (contra : Elem sourceName (getQuerySourcesVect ast) -> Void) -> (prf : SourceNameResolvesCorrectly ast sourceName) -> Void
+    contra' contra (Indeed {prf = prf'}) = contra prf'
+
+    sourceNameResolvesCorrectly : (ast : QueryAbstractSyntaxTree) -> (sourceName : TableName) -> Dec (SourceNameResolvesCorrectly ast sourceName)
+    sourceNameResolvesCorrectly ast sourceName = case isElem sourceName (getQuerySourcesVect ast) of
+        Yes prf => Yes $ Indeed {prf = prf}
+        No contra => No (contra' contra)
+
+
+    ----
     data AllSourceNamesResolvesCorrectly : (ast : QueryAbstractSyntaxTree) -> Type where
-        Because : ForEveryElement (getExpressionSources ast) (SourceNameResolvesCorrectly ast) -> AllSourceNamesResolvesCorrectly ast
+        IndeedAll : ForEveryElementVect (getExpressionSourcesVect ast) (SourceNameResolvesCorrectly ast) -> AllSourceNamesResolvesCorrectly ast
 
+    contra'' :
+        (contra : ForEveryElementVect sourceNames (SourceNameResolvesCorrectly ast) -> Void)
+        -> (decision : Dec (ForEveryElementVect sourceNames (SourceNameResolvesCorrectly ast)))
+        -> (p : sourceNames = getExpressionSourcesVect ast)
+        -> AllSourceNamesResolvesCorrectly ast -> Void
+    contra'' contra decision prfNames (IndeedAll prfEvery) = case prfEvery of
+        EmptyListOk impossible
+        (NextElOk _ _) impossible
 
-allColumnTablePrefixesResolvesToValidSource : (ast : QueryAbstractSyntaxTree) -> Dec (AllSourceNamesResolvesCorrectly ast)
-allColumnTablePrefixesResolvesToValidSource ast = ?allColumnTablePrefixesResolvesToValidSource_rhs
+    allSourceNamesResolvesCorrectly : (ast : QueryAbstractSyntaxTree) -> Dec (AllSourceNamesResolvesCorrectly ast)
+    allSourceNamesResolvesCorrectly ast with (getExpressionSourcesVect ast) proof p
+        allSourceNamesResolvesCorrectly ast | (sourceNames) =
+            let
+                decision    = forEveryElementVect {A = TableName} sourceNames (SourceNameResolvesCorrectly ast) (sourceNameResolvesCorrectly ast)
+            in
+                case decision of
+                    (Yes prf) => Yes $ IndeedAll (rewrite sym p in prf)
+                    (No contra) => No (contra'' contra decision p)
 
 ----
 -- Property 2
 data ProofColumnReferences : (ast : QueryAbstractSyntaxTree) -> Type where
 
 
+----
 record CompleteQuery where
     constructor MkCompleteQuery
 
     partialQuery                    : PartialQuery ()
 
-    proofSingleBaseTable            : QueryHasExactlyOneBaseTable (collapseToAst partialQuery)
+    -- proofSingleBaseTable            : QueryHasExactlyOneBaseTable (collapseToAst partialQuery)
     proofAllSourceNamesResolves     : AllSourceNamesResolvesCorrectly (collapseToAst partialQuery)
 
 -- PartialQuery -> PartialQuery -> Either (ErrorPartialCombination) PartialQuery
@@ -237,45 +267,13 @@ record CompleteQuery where
 --
 -- CompleteQuery -> Either (ErrorPartialToComplete) ValidQuery
 
-data QueryComputation : (result : Type) -> Type where
+----
+data ErrorPartialToComplete = MkErrorPartialToComplete String
 
+partialToComplete : PartialQuery () -> Either (ErrorPartialToComplete) CompleteQuery
 
-
-sub :
-    (query : PartialQuery a)
-    -> { prf : QueryHasExactlyOneColumn (collapseToAst query) }
-    -> ColumnExpression (getSqlTypeFromQueryWithOneColumn (collapseToAst query) {f=prf})
-
-sub query {prf} =
-    let
-        x = SubQueryExpression query {prf = prf}
-    in
-        x
-
-
-subQuery : PartialQuery ()
-subQuery = Select [ (INTEGER ** Column "id") ]
-
-one_column : QueryHasExactlyOneColumn (collapseToAst LanguageReduced.subQuery)
-one_column = LanguageReduced.QueryHasExactlyOneColumn.Because {prf = Util.ListHasExactlyOneElement.Because}
-
--- subQuery1 : ColumnExpression INTEGER
--- subQuery1 = SubQueryExpression subQuery {prf = one_column}
-
-
-subQuery1 : ColumnExpression INTEGER
-subQuery1 =
-    let
-        x = SubQueryExpression subQuery {prf = one_column}
-    in
-        x
-
-
-
-
-query2 : PartialQuery ()
-query2 = do
-    Select
-        [ (INTEGER ** Column "id"), (_ ** subQuery1) ]
-    From
-        (SubQuery $ Select [ (INTEGER ** Column "id") ])
+partialToComplete partialQuery with (collapseToAst partialQuery) proof p
+    partialToComplete partialQuery | (ast) =
+        case allSourceNamesResolvesCorrectly ast of
+            (No contra) => Left (MkErrorPartialToComplete "error")
+            (Yes prf) => Right (MkCompleteQuery partialQuery (rewrite sym p in prf))
