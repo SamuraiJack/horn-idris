@@ -20,6 +20,7 @@ sqlTypeToIdrisType TEXT = String
 sqlTypeToIdrisType INTEGER = Integer
 sqlTypeToIdrisType FLOAT = Double
 sqlTypeToIdrisType (NULLABLE x) = Maybe (sqlTypeToIdrisType x)
+sqlTypeToIdrisType UNKNOWN = Void
 
 -- equalSql : (t : SqlType) -> (x, y : sqlTypeToIdrisType t) -> Bool
 -- equalSql TEXT x y = x == y

@@ -3,6 +3,7 @@ module Util
 import Data.So
 import Data.Vect
 
+
 %default total
 %access public export
 
@@ -76,8 +77,34 @@ namespace OnlyJust
     onlyJust ((Just x) :: xs) = x :: onlyJust xs
 
 ----
-data FunctionImage : {A, B : Type} -> (f : A -> B) -> B -> Type where
-    MkFunctionImage   : (x : ty) -> FunctionImage f (f x)
+namespace FunctionImage
+    data FunctionImage1 : {A, B : Type} -> (f : A -> B) -> A -> B -> Type where
+        MkFunctionImage1   : (x : ty) -> FunctionImage1 f x (f x)
+
+    data FunctionImage2 : {A, B, C : Type} -> (f : A -> B -> C) -> A -> B -> C -> Type where
+        MkFunctionImage2   : {A, B : Type} -> (a : A) -> (b : B) -> FunctionImage2 f a b (f a b)
+
+    example1 : FunctionImage2 Data.Vect.elem 1 [ 1 ] True
+    example1 = MkFunctionImage2 {f=Data.Vect.elem} 1 [ 1 ]
+
+    example2 : FunctionImage2 Data.Vect.elem 1 [ 2 ] False
+    example2 = MkFunctionImage2 {f=Data.Vect.elem} 1 [ 2 ]
+
+----
+data IsVectElem : {A : Type} -> A -> Vect n A -> Type where
+    ItDoes  : {A : Type} -> Eq A => FunctionImage2 (Data.Vect.elem) el vect True -> IsVectElem {A} el vect
+
+----
+namespace ListHasExactlyOneElement2
+    data ListHasExactlyOneElement2 : {A : Type} -> List A -> Type where
+        ItDoes  : {A : Type} -> FunctionImage1 (Prelude.List.length) list 1 -> ListHasExactlyOneElement2 {A} list
+
+    getElementFromProof : (prf : ListHasExactlyOneElement2 {A = ty} xs) -> ty
+    getElementFromProof (ItDoes {A = ty} imagePrf) = ?zc_1
+
+-- isVectElem : {A : Type} -> (el : A) -> (vect : Vect n A) -> Dec (IsVectElem el vect)
+-- isVectElem x xs with (Data.Vect.elem x xs) proof p
+--     isVectElem x xs | (res)    = ?zxc
 
 
 -- getElFromProof : {A : Type} -> {x : A} -> {y : A} -> (prf : x = y) -> A

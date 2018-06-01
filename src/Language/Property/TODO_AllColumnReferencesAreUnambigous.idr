@@ -1,5 +1,27 @@
 module Language.Property.AllColumnReferencesAreUnambigous
 
+{-
+
+SELECT
+    id, name, salary
+FROM
+    "User" AS u
+LEFT JOIN
+    "Company" as c on u.company_id = c.id
+
+====
+ERROR:  column reference "id" is ambiguous
+LINE 2:     id, name, salary
+            ^
+
+********** Error **********
+
+ERROR: column reference "id" is ambiguous
+SQL state: 42702
+Character: 13
+
+-}
+
 import SqlTypes
 import Database
 import Util
