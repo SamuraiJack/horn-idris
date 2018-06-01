@@ -1,4 +1,4 @@
-module LanguageReduced
+module Language
 
 import SqlTypes
 import Database
@@ -38,9 +38,13 @@ mutual
     data ColumnExpression : SqlType -> Type where
         BooleanLiteral  : Bool -> ColumnExpression BOOLEAN
         IntegerLiteral  : Int -> ColumnExpression INTEGER
+        StringLiteral   : String -> ColumnExpression TEXT
 
-        Column          : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
-        ColumnInTable   : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
+        ColumnT         : {columnType : SqlType} -> (columnName : String) -> ColumnExpression columnType
+        ColumnInTableT  : {columnType : SqlType} -> (tableName : String) -> (columnName : String) -> ColumnExpression columnType
+
+        Column          : (columnName : String) -> ColumnExpression UNKNOWN
+        ColumnInTable   : (tableName : String) -> (columnName : String) -> ColumnExpression UNKNOWN
 
         AsExpr          : ColumnExpression sqlType -> (aliasName : String) -> ColumnExpression sqlType
 

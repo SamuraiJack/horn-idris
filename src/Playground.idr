@@ -1,9 +1,9 @@
-module LanguageReduced
+module Language
 
 import SqlTypes
 import Database
 import Util
-import LanguageReduced
+import Language
 import Data.Vect
 
 ----
@@ -20,10 +20,10 @@ sub query {prf} =
 
 
 subQuery : PartialQuery ()
-subQuery = Select [ (INTEGER ** Column "id") ]
+subQuery = Select [ (INTEGER ** ColumnT "id") ]
 
-one_column : QueryHasExactlyOneColumn (collapseToAst LanguageReduced.subQuery)
-one_column = LanguageReduced.QueryHasExactlyOneColumn.Because {prf = Util.ListHasExactlyOneElement.Because}
+one_column : QueryHasExactlyOneColumn (collapseToAst Language.subQuery)
+one_column = Language.QueryHasExactlyOneColumn.Because {prf = Util.ListHasExactlyOneElement.Because}
 
 -- subQuery1 : ColumnExpression INTEGER
 -- subQuery1 = SubQueryExpression subQuery {prf = one_column}
@@ -40,17 +40,25 @@ subQuery1 =
 query2 : PartialQuery ()
 query2 = do
     Select
-        [ (INTEGER ** Column "id"), (_ ** subQuery1) ]
+        [ (INTEGER ** ColumnT "id"), (_ ** subQuery1) ]
     From
-        (SubQuery $ Select [ (INTEGER ** Column "id") ])
+        (SubQuery $ Select [ (INTEGER ** ColumnT "id") ])
 
 
 query3 : PartialQuery ()
 query3 = do
     Select
-        [ (INTEGER ** ColumnInTable "SomeTable" "id"), (_ ** subQuery1) ]
+        [ (INTEGER ** ColumnInTableT "SomeTable" "id"), (_ ** subQuery1) ]
     From
         (Table "SomeTable")
 
 query3comp : Either (ErrorPartialToComplete) CompleteQuery
 query3comp = partialToComplete query3
+
+
+query4 : PartialQuery ()
+query4 = do
+    Select
+        [ (_ ** Column "id"), (_ ** Column "name"), (_ ** Column "salary") ]
+    From
+        (Table "User")

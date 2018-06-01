@@ -3,7 +3,7 @@ module SqlTypes
 %default total
 %access public export
 
-data SqlType = BOOLEAN | TEXT | INTEGER | FLOAT | NULLABLE SqlType
+data SqlType = UNKNOWN | BOOLEAN | TEXT | INTEGER | FLOAT | NULLABLE SqlType
 
 data SqlTypeIsNumeric : (sqlType : SqlType) -> Type where
     BecauseItsInteger   : SqlTypeIsNumeric INTEGER

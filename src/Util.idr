@@ -75,6 +75,10 @@ namespace OnlyJust
     onlyJust (Nothing :: xs) = onlyJust xs
     onlyJust ((Just x) :: xs) = x :: onlyJust xs
 
+----
+data FunctionImage : {A, B : Type} -> (f : A -> B) -> B -> Type where
+    MkFunctionImage   : (x : ty) -> FunctionImage f (f x)
+
 
 -- getElFromProof : {A : Type} -> {x : A} -> {y : A} -> (prf : x = y) -> A
 -- getElFromProof {A} {x} prf = x
