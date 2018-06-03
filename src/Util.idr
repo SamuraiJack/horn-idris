@@ -18,8 +18,13 @@ namespace ListHasExactlyOneElement
     Uninhabited (ListHasExactlyOneElement a (x :: y :: xs)) where
         uninhabited Because impossible
 
-getElementFromProof : (prf : ListHasExactlyOneElement ty xs) -> ty
-getElementFromProof (Because {x}) = assert_total x
+    listHasExactlyOneElement : (list : List a) -> Dec (ListHasExactlyOneElement a list)
+    listHasExactlyOneElement ([]) = No absurd
+    listHasExactlyOneElement (x :: []) = Yes Because
+    listHasExactlyOneElement (x :: y :: xs) = No absurd
+
+    getElementFromProof : (prf : ListHasExactlyOneElement ty xs) -> ty
+    getElementFromProof (Because {x}) = x
 
 
 ----

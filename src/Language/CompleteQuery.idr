@@ -5,6 +5,7 @@ import Database
 import Util
 import Language.PartialQuery
 import Language.Property.AllSourceNamesResolvesCorrectly
+import Language.Property.QueryHasExactlyOneBaseTable
 
 import Control.Monad.State
 
@@ -17,7 +18,7 @@ record CompleteQuery where
 
     partialQuery                    : PartialQuery ()
 
-    -- proofSingleBaseTable            : QueryHasExactlyOneBaseTable (collapseToAst partialQuery)
+    proofSingleBaseTable            : QueryHasExactlyOneBaseTable (collapseToAst partialQuery)
     proofAllSourceNamesResolves     : AllSourceNamesResolvesCorrectly (collapseToAst partialQuery)
 
 -- PartialQuery -> PartialQuery -> Either (ErrorPartialCombination) PartialQuery
@@ -34,5 +35,9 @@ partialToComplete : PartialQuery () -> Either (ErrorPartialToComplete) CompleteQ
 partialToComplete partialQuery with (collapseToAst partialQuery) proof p
     partialToComplete partialQuery | (ast) =
         case allSourceNamesResolvesCorrectly ast of
-            (No contra) => Left (MkErrorPartialToComplete "error")
-            (Yes prf) => Right (MkCompleteQuery partialQuery (rewrite sym p in prf))
+            (No contra) => Left (MkErrorPartialToComplete "error1")
+            (Yes prfResolves) =>
+                case queryHasExactlyOneBaseTable ast of
+                    (No contra) => Left (MkErrorPartialToComplete "error2")
+                    (Yes prfSingleTable) =>
+                        Right (MkCompleteQuery partialQuery (rewrite sym p in prfSingleTable) (rewrite sym p in prfResolves))
