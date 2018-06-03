@@ -8,6 +8,7 @@ import Language.Property.AllSourceNamesResolvesCorrectly
 import Language.Property.QueryHasExactlyOneBaseTable
 
 import Control.Monad.State
+import Data.Vect
 
 %default total
 %access public export

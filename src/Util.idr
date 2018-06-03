@@ -23,8 +23,8 @@ namespace ListHasExactlyOneElement
     listHasExactlyOneElement (x :: []) = Yes Because
     listHasExactlyOneElement (x :: y :: xs) = No absurd
 
-    getElementFromProof : (prf : ListHasExactlyOneElement ty xs) -> ty
-    getElementFromProof (Because {x}) = x
+    getElFromExactlyOne : (prf : ListHasExactlyOneElement ty xs) -> ty
+    getElFromExactlyOne (Because {x}) = x
 
 
 ----
@@ -129,18 +129,18 @@ data IsVectElem : {A : Type} -> A -> Vect n A -> Type where
 --         listHasExactlyOneElement list | (_) = No (lemma1 p)
 --
 --
---     getElementFromProof : (prf : ListHasExactlyOneElement2 {A = ty} list) -> ty
---     getElementFromProof (ItDoes {A = ty} {list} imagePrf) with (Prelude.List.length list) proof p
---         getElementFromProof (ItDoes {A = ty} {list} imagePrf) | S Z = ?zz
+--     getElFromExactlyOne : (prf : ListHasExactlyOneElement2 {A = ty} list) -> ty
+--     getElFromExactlyOne (ItDoes {A = ty} {list} imagePrf) with (Prelude.List.length list) proof p
+--         getElFromExactlyOne (ItDoes {A = ty} {list} imagePrf) | S Z = ?zz
 --
---         getElementFromProof (ItDoes {A = ty} {list} imagePrf) | _ = ?zc_2
+--         getElFromExactlyOne (ItDoes {A = ty} {list} imagePrf) | _ = ?zc_2
 --
 -- namespace ListHasExactlyOneElement3
 --     data ListHasExactlyOneElement3 : {A : Type} -> (list : List A) -> Type where
 --         ItDoes  : {A : Type} -> {list : List A} -> FunctionImage3 (Prelude.List.length) list Refl -> ListHasExactlyOneElement3 {A} list
 --
---     getElementFromProof : (prf : ListHasExactlyOneElement3 {A = ty} list) -> ty
---     getElementFromProof (ItDoes x) = ?getElementFromProof_rhs_1
+--     getElFromExactlyOne : (prf : ListHasExactlyOneElement3 {A = ty} list) -> ty
+--     getElFromExactlyOne (ItDoes x) = ?getElFromExactlyOne_rhs_1
 --
 -- isVectElem : {A : Type} -> (el : A) -> (vect : Vect n A) -> Dec (IsVectElem el vect)
 -- isVectElem x xs with (Data.Vect.elem x xs) proof p

@@ -124,76 +124,21 @@ mutual
 
     ----
     namespace QueryHasExactlyOneColumn
-        data QueryHasExactlyOneColumn : (ast : QueryAbstractSyntaxTree) -> Type where
-            Because     : { ast : QueryAbstractSyntaxTree }
-                -> { auto prf : ListHasExactlyOneElement AnyColumnExpression (fields ast) }
-                -> QueryHasExactlyOneColumn ast
-
-        noColsProof : (p : [] = fieldsAcc ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
-        noColsProof p colProof = assert_total $ case colProof of
-            Because {ast} {prf} =>
-                case prf of
-                    Because impossible
-
-        twoAndMoreProof : (p : (x :: (y :: xs)) = fieldsAcc ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
-        twoAndMoreProof p (colProof) = assert_total $ case colProof of
-            Because {ast} {prf} =>
-                case prf of
-                    Because impossible
+        QueryHasExactlyOneColumn : (ast : QueryAbstractSyntaxTree) ->Type
+        QueryHasExactlyOneColumn ast = ListHasExactlyOneElement AnyColumnExpression (fields ast)
 
         queryHasExactlyOneColumn : (ast : QueryAbstractSyntaxTree) -> Dec (QueryHasExactlyOneColumn ast)
-        queryHasExactlyOneColumn ast with (fields ast) proof p
-
-            queryHasExactlyOneColumn ast | ([]) = assert_total $
-                No (\colProof => noColsProof p colProof)
-
-            queryHasExactlyOneColumn ast | (x :: []) = assert_total $
-                Yes $ Because {ast = ast} {prf = rewrite sym p in (Because {x = x})}
-
-            queryHasExactlyOneColumn ast | (x :: y :: xs) = assert_total $
-                No (\colProof => twoAndMoreProof p colProof)
-
-    ----
-    -- namespace QueryHasExactlyOneBaseTable
-    --     data QueryHasExactlyOneBaseTable : (ast : QueryAbstractSyntaxTree) -> Type where
-    --         Because     : { ast : QueryAbstractSyntaxTree }
-    --             -> { auto prf : ListHasExactlyOneElement QuerySource (baseTableAcc ast) }
-    --             -> QueryHasExactlyOneBaseTable ast
-    --
-    --     noColsProof : (p : [] = baseTableAcc ast) -> (tableProof : QueryHasExactlyOneBaseTable ast) -> Void
-    --     -- noColsProof p tableProof = case tableProof of
-    --     --     Because {ast} {prf} =>
-    --     --         case p of
-    --     --             Refl => ?zxc
-    --
-    --     twoAndMoreProof : (p : (x :: (y :: xs)) = baseTableAcc ast) -> (colProof : QueryHasExactlyOneBaseTable ast) -> Void
-    --     -- twoAndMoreProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
-    --     --     Because impossible
-    --
-    --     queryHasExactlyOneBaseTable : (ast : QueryAbstractSyntaxTree) -> Dec (QueryHasExactlyOneBaseTable ast)
-    --     queryHasExactlyOneBaseTable ast with (baseTableAcc ast) proof p
-    --
-    --         queryHasExactlyOneBaseTable ast | ([]) = assert_total $
-    --             No (\colProof => noColsProof p colProof)
-    --
-    --         queryHasExactlyOneBaseTable ast | (x :: []) = assert_total $
-    --             Yes $ Because {ast = ast} {prf = rewrite sym p in (Because {x = x})}
-    --
-    --         queryHasExactlyOneBaseTable ast | (x :: y :: xs) = assert_total $
-    --             No (\colProof => twoAndMoreProof p colProof)
+        queryHasExactlyOneColumn ast = listHasExactlyOneElement (fields ast)
 
 
     ----
     getSqlTypeFromQueryWithOneColumn : (query : QueryAbstractSyntaxTree) -> { auto f : QueryHasExactlyOneColumn query } -> SqlType
 
-    getSqlTypeFromQueryWithOneColumn query {f} = assert_total (
-        case assert_total f of
-            QueryHasExactlyOneColumn.Because {prf} =>
-                let
-                    (sqlType ** expression) = assert_total $ getElementFromProof prf
-                in
-                    assert_total sqlType
-    )
+    getSqlTypeFromQueryWithOneColumn query {f} =
+        let
+            (sqlType ** expression) = getElFromExactlyOne f
+        in
+            sqlType
 
 -- EOF mutual
 
