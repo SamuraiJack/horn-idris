@@ -86,6 +86,19 @@ mutual
 
         (>>=)           : PartialQuery a -> (a -> PartialQuery b) -> PartialQuery b
 
+    ----
+    allFromEntriesInQuery : PartialQuery a -> (a, List QuerySource)
+
+    allFromEntriesInQuery (Select xs) = ((), [])
+    allFromEntriesInQuery (Pure x) = (x, [])
+    allFromEntriesInQuery (From source) = ((), [ source ])
+    allFromEntriesInQuery (LeftJoin source joinExpression) = ((), [])
+    allFromEntriesInQuery (x >>= f) =
+        case allFromEntriesInQuery x of
+            (res, sources) =>
+                case allFromEntriesInQuery (f res) of
+                    (res', sources') => (res', sources ++ sources')
+
 
     ----
     collapseToAst : PartialQuery a -> QueryAbstractSyntaxTree
@@ -117,12 +130,16 @@ mutual
                 -> QueryHasExactlyOneColumn ast
 
         noColsProof : (p : [] = fieldsAcc ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
-        noColsProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
-            Because impossible
+        noColsProof p colProof = assert_total $ case colProof of
+            Because {ast} {prf} =>
+                case prf of
+                    Because impossible
 
         twoAndMoreProof : (p : (x :: (y :: xs)) = fieldsAcc ast) -> (colProof : QueryHasExactlyOneColumn ast) -> Void
-        twoAndMoreProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of
-            Because impossible
+        twoAndMoreProof p (colProof) = assert_total $ case colProof of
+            Because {ast} {prf} =>
+                case prf of
+                    Because impossible
 
         queryHasExactlyOneColumn : (ast : QueryAbstractSyntaxTree) -> Dec (QueryHasExactlyOneColumn ast)
         queryHasExactlyOneColumn ast with (fields ast) proof p
@@ -143,9 +160,11 @@ mutual
                 -> { auto prf : ListHasExactlyOneElement QuerySource (baseTableAcc ast) }
                 -> QueryHasExactlyOneBaseTable ast
 
-        noColsProof : (p : [] = baseTableAcc ast) -> QueryHasExactlyOneBaseTable ast -> Void
-        -- noColsProof p (Because {ast} {prf}) = case p of
-        --     Refl impossible
+        noColsProof : (p : [] = baseTableAcc ast) -> (tableProof : QueryHasExactlyOneBaseTable ast) -> Void
+        -- noColsProof p tableProof = case tableProof of
+        --     Because {ast} {prf} =>
+        --         case p of
+        --             Refl => ?zxc
 
         twoAndMoreProof : (p : (x :: (y :: xs)) = baseTableAcc ast) -> (colProof : QueryHasExactlyOneBaseTable ast) -> Void
         -- twoAndMoreProof p (Because {ast} {prf=singleColProof}) = assert_total $ case singleColProof of

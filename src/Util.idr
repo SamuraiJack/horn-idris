@@ -81,8 +81,14 @@ namespace FunctionImage
     data FunctionImage1 : {A, B : Type} -> (f : A -> B) -> A -> B -> Type where
         MkFunctionImage1   : (x : ty) -> FunctionImage1 f x (f x)
 
+    extractArgument1: {A, B : Type} -> {f : A -> B} -> {a : A} -> {b : B} -> (prf : FunctionImage1 f a b) -> A
+    extractArgument1 {A} {B} {f} {a} prf = a
+
     data FunctionImage2 : {A, B, C : Type} -> (f : A -> B -> C) -> A -> B -> C -> Type where
         MkFunctionImage2   : {A, B : Type} -> (a : A) -> (b : B) -> FunctionImage2 f a b (f a b)
+
+    data FunctionImage3 : {A, B : Type} -> (f : A -> B) -> (a : A) -> (prf : f a = b) -> Type where
+        MkFunctionImage3   : {A, B : Type} -> (a : A) -> FunctionImage3 f a Refl
 
     example1 : FunctionImage2 Data.Vect.elem 1 [ 1 ] True
     example1 = MkFunctionImage2 {f=Data.Vect.elem} 1 [ 1 ]
@@ -90,18 +96,47 @@ namespace FunctionImage
     example2 : FunctionImage2 Data.Vect.elem 1 [ 2 ] False
     example2 = MkFunctionImage2 {f=Data.Vect.elem} 1 [ 2 ]
 
+    sum : Vect n Nat -> Nat
+    sum = foldr (+) 0
+
+    example3 : FunctionImage1 (Util.FunctionImage.sum) [ 1, 2 ] 3
+    example3 = MkFunctionImage1 [ 1, 2 ]
+
+    some : Vect 2 Nat
+    some = extractArgument1 example3
+
 ----
 data IsVectElem : {A : Type} -> A -> Vect n A -> Type where
     ItDoes  : {A : Type} -> Eq A => FunctionImage2 (Data.Vect.elem) el vect True -> IsVectElem {A} el vect
 
 ----
-namespace ListHasExactlyOneElement2
-    data ListHasExactlyOneElement2 : {A : Type} -> List A -> Type where
-        ItDoes  : {A : Type} -> FunctionImage1 (Prelude.List.length) list 1 -> ListHasExactlyOneElement2 {A} list
-
-    getElementFromProof : (prf : ListHasExactlyOneElement2 {A = ty} xs) -> ty
-    getElementFromProof (ItDoes {A = ty} imagePrf) = ?zc_1
-
+-- namespace ListHasExactlyOneElement2
+--     data ListHasExactlyOneElement2 : {A : Type} -> (list : List A) -> Type where
+--         ItDoes  : {A : Type} -> {list : List A} -> FunctionImage1 (Prelude.List.length) list 1 -> ListHasExactlyOneElement2 {A} list
+--
+--     lemma1 : (p : warg = length list) -> ListHasExactlyOneElement2 list -> Void
+--     -- lemma1 prf prfList = case prfList of
+--     --     (ItDoes (MkFunctionImage1 list)) => ?zzz
+--
+--     listHasExactlyOneElement : {A : Type} -> (list : List A) -> Dec (ListHasExactlyOneElement2 {A} list)
+--     listHasExactlyOneElement list with (length list) proof p
+--         listHasExactlyOneElement {A} list | (S Z) = Yes (ItDoes {A} {list} (rewrite p in MkFunctionImage1 list))
+--         listHasExactlyOneElement list | (_) = No (lemma1 p)
+--
+--
+--     getElementFromProof : (prf : ListHasExactlyOneElement2 {A = ty} list) -> ty
+--     getElementFromProof (ItDoes {A = ty} {list} imagePrf) with (Prelude.List.length list) proof p
+--         getElementFromProof (ItDoes {A = ty} {list} imagePrf) | S Z = ?zz
+--
+--         getElementFromProof (ItDoes {A = ty} {list} imagePrf) | _ = ?zc_2
+--
+-- namespace ListHasExactlyOneElement3
+--     data ListHasExactlyOneElement3 : {A : Type} -> (list : List A) -> Type where
+--         ItDoes  : {A : Type} -> {list : List A} -> FunctionImage3 (Prelude.List.length) list Refl -> ListHasExactlyOneElement3 {A} list
+--
+--     getElementFromProof : (prf : ListHasExactlyOneElement3 {A = ty} list) -> ty
+--     getElementFromProof (ItDoes x) = ?getElementFromProof_rhs_1
+--
 -- isVectElem : {A : Type} -> (el : A) -> (vect : Vect n A) -> Dec (IsVectElem el vect)
 -- isVectElem x xs with (Data.Vect.elem x xs) proof p
 --     isVectElem x xs | (res)    = ?zxc
