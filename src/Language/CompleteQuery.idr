@@ -9,6 +9,7 @@ import Language.Property.QueryHasExactlyOneBaseTable
 
 import Control.Monad.State
 import Data.Vect
+import Data.So
 
 %default total
 %access public export
@@ -42,3 +43,11 @@ partialToComplete partialQuery with (collapseToAst partialQuery) proof p
                     (No contra) => Left (MkErrorPartialToComplete "error2")
                     (Yes prfSingleTable) =>
                         Right (MkCompleteQuery partialQuery (rewrite sym p in prfSingleTable) (rewrite sym p in prfResolves))
+
+
+partialToComplete2 : (partialQuery : PartialQuery ()) -> IsRight (partialToComplete partialQuery)
+partialToComplete2 partialQuery with (partialToComplete partialQuery) proof p
+    partialToComplete2 partialQuery | eitherPartial =
+        case isRight eitherPartial of
+            Yes prf     => prf
+            No contra   => ?zc1 --contra (partialToComplete partialQuery)

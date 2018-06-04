@@ -70,3 +70,10 @@ query4 = do
 
 query4comp : Either (ErrorPartialToComplete) CompleteQuery
 query4comp = partialToComplete query4
+
+
+-- data Complete
+--
+-- query5 : PartialQuery Complete
+-- query5 = do
+--     query4

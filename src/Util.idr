@@ -28,10 +28,16 @@ namespace ListHasExactlyOneElement
 
 
 ----
-namespace ForEveryElement
-    data ForEveryElement : {A : Type} -> (list : List A) -> (predicate : A -> Type) -> Type where
-        EmptyListOk : ForEveryElement [] predicate
-        NextElOk : {A : Type} -> (prev : ForEveryElement {A} xs predicate) -> (prf : predicate el) -> ForEveryElement {A} (el :: xs) predicate
+namespace Both
+    data Both : {A : Type} -> (value : A) -> (predicate1 : A -> Type) -> (predicate2 : A -> Type) -> Type where
+        MkBoth : {A : Type} -> (prf1 : predicate1 value) -> (prf2 : predicate2 value) -> Both {A} value predicate1 predicate2
+
+
+----
+namespace ForEveryElementList
+    data ForEveryElementList : {A : Type} -> (list : List A) -> (predicate : A -> Type) -> Type where
+        EmptyListOk : ForEveryElementList [] predicate
+        NextElOk : {A : Type} -> (prev : ForEveryElementList {A} xs predicate) -> (prf : predicate el) -> ForEveryElementList {A} (el :: xs) predicate
 
 
 ----
@@ -82,12 +88,44 @@ namespace OnlyJust
     onlyJust ((Just x) :: xs) = x :: onlyJust xs
 
 ----
+namespace IsRight
+    IsRight' : {a, b : Type} -> Either a b -> Type
+    -- IsRight' (Left l) = const Void
+    -- IsRight' {b} (Right r) = b
+
+    data IsRight : {a, b : Type} -> Either a b -> Type where
+        MkIsRight : {B : Type} -> (b : B) -> IsRight (Right b)
+
+    Uninhabited (IsRight (Left a)) where
+        uninhabited MkIsRight impossible
+
+    isRight : {a, b : Type} -> (e : Either a b) -> Dec (IsRight e)
+    isRight (Left l) = No absurd
+    isRight (Right r) = Yes (MkIsRight r)
+
+
+    verifyNotNull : Nat -> Either String Nat
+    verifyNotNull Z = Left "is zero"
+    verifyNotNull k = Right k
+
+    safeNotZero : (a : Nat) -> IsRight' (verifyNotNull a) -> Nat
+
+    -- onlyJust : List (Maybe a) -> List a
+    -- onlyJust [] = []
+    -- onlyJust (Nothing :: xs) = onlyJust xs
+    -- onlyJust ((Just x) :: xs) = x :: onlyJust xs
+
+
+----
 namespace FunctionImage
     data FunctionImage1 : {A, B : Type} -> (f : A -> B) -> A -> B -> Type where
-        MkFunctionImage1   : (x : ty) -> FunctionImage1 f x (f x)
+        MkFunctionImage1   : {A : Type} -> (x : A) -> FunctionImage1 f x (f x)
 
     extractArgument1: {A, B : Type} -> {f : A -> B} -> {a : A} -> {b : B} -> (prf : FunctionImage1 f a b) -> A
-    extractArgument1 {A} {B} {f} {a} prf = a
+    extractArgument1 {a} prf = a
+
+    extractImage1: {A, B : Type} -> {f : A -> B} -> {a : A} -> {b : B} -> (prf : FunctionImage1 f a b) -> B
+    extractImage1 {b} prf = b
 
     data FunctionImage2 : {A, B, C : Type} -> (f : A -> B -> C) -> A -> B -> C -> Type where
         MkFunctionImage2   : {A, B : Type} -> (a : A) -> (b : B) -> FunctionImage2 f a b (f a b)
@@ -111,8 +149,8 @@ namespace FunctionImage
     some = extractArgument1 example3
 
 ----
-data IsVectElem : {A : Type} -> A -> Vect n A -> Type where
-    ItDoes  : {A : Type} -> Eq A => FunctionImage2 (Data.Vect.elem) el vect True -> IsVectElem {A} el vect
+-- data IsVectElem : {A : Type} -> A -> Vect n A -> Type where
+--     ItDoes  : {A : Type} -> Eq A => FunctionImage2 (Data.Vect.elem) el vect True -> IsVectElem {A} el vect
 
 ----
 -- namespace ListHasExactlyOneElement2
